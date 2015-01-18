@@ -25,6 +25,7 @@ module.exports = ->
       hooks = {}
     else
       throw new Error("not implemented")
+  free: -> hooks = null
 
   trigger: (aOperationType, key, args) ->
     i = 0
