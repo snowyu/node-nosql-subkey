@@ -2,7 +2,7 @@
 
 Add the subkey/sublevel feature to [abstract-nosql](https://github.com/snowyu/node-abstract-nosql) database.
 
-the subkey feature is a special [nosql-encoding](https://github.com/snowyu/node-nosql-encoding) feature.
+the subkey feature is a special [encoding](https://github.com/snowyu/node-nosql-encoding) feature.
 It's inherited from [nosql-encoding](https://github.com/snowyu/node-nosql-encoding).
 
 ## Purpose
@@ -10,8 +10,7 @@ It's inherited from [nosql-encoding](https://github.com/snowyu/node-nosql-encodi
 * Dynamic sublevels via key path
 * Hierarchy Key/Value data store like file path.
 + minimatch supports for hook and search.
-+ Filter on the stream
-+ Stream supports
++ Stream support with [nosql-stream](https://github.com/snowyu/node-nosql-stream)
 + Encoding supports
 + hookable to put/del.
 + destroy event on Subkey
