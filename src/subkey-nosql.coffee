@@ -168,10 +168,6 @@ module.exports = class SubkeyNoSQL
         throw new InvalidArgumentError("class should be inherited from EncodingNoSQL or AbstractNoSQL")
     @Subkey = subkey(@)
     super
-  init: (options)->
-    @preHooks = hooks()
-    @postHooks = hooks()
-    @cache = new SubkeyCache(options)
   keyEncoding: (options)->
     if options and options.keyEncoding
       encoding = options.keyEncoding
@@ -211,6 +207,9 @@ module.exports = class SubkeyNoSQL
       @postHooks = hooks()
       @cache = new SubkeyCache(options)
     else
+      @preHooks.free() if @preHooks
+      @postHooks.free() if @postHooks
+      @cache.free() if @cache
       @preHooks = null
       @postHooks = null
       @cache = null

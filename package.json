@@ -22,7 +22,7 @@
     "json"
   ],
   "dependencies": {
-    "abstract-nosql": ">=1.10.4",
+    "abstract-nosql": ">=1.10.5",
     "abstract-object": ">=1.6.1",
     "depd": "~1.0.0",
     "ltgt": "~2.0.0",
