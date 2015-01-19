@@ -368,7 +368,7 @@ module.exports = (aDbCore, aCreateReadStream = ReadStream, aCreateWriteStream = 
       
       #the opts.path could be relative
       opts.path = getPathArray(opts.path, @_pathArray) or @_pathArray
-      stream = aCreateReadStream(aDbCore, opts, aDbCore.createDecoder(opts))
+      stream = aCreateReadStream(aDbCore, opts)
       stream
     createReadStream: @::readStream
 
