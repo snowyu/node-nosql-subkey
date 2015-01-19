@@ -1,1 +1,1 @@
-module.exports = require('./lib/subkey-nosql')
+module.exports = require('./lib/nosql-subkey')
