@@ -29,6 +29,15 @@ module.exports = (grunt) ->
         expand: true
         ext: '.js'
 
+    mochaTest:
+      test:
+        options:
+          ui: 'bdd'
+          quiet: false
+          require: 'coffee-script/register'
+          reporter: 'dot'
+          check: ['src/**/*.coffee', 'test/**/*.js', 'test/**/*.coffee']
+        src: ['test/**/*-test.coffee']
 
     watch:
       options:
@@ -47,6 +56,7 @@ module.exports = (grunt) ->
 
   #grunt.loadTasks('tasks')
 
+  grunt.loadNpmTasks('grunt-mocha-test')
   grunt.loadNpmTasks('grunt-contrib-copy')
   grunt.loadNpmTasks('grunt-release')
   grunt.loadNpmTasks('grunt-contrib-watch')
@@ -56,5 +66,6 @@ module.exports = (grunt) ->
 
   grunt.registerTask('build', ['newer:coffee', 'newer:copy'])
   grunt.registerTask('rebuild', ['clean', 'build'])
+  grunt.registerTask('test', ['build', 'mochaTest'])
   grunt.registerTask('watch', ['watch'])
   grunt.registerTask('default', ['build'])
