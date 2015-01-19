@@ -1,13 +1,15 @@
-util      = require("abstract-object/lib/util")
-Codec     = require('buffer-codec')
-path      = require('../path')
-SEP       = require('./separator')
+Codec             = require('buffer-codec')
+SEP               = require('./separator')
+path              = require('../path')
 
-TextCodec = Codec['text']
-register  = Codec.register
-isString  = util.isString
-isFunction= util.isFunction
-toPath    = path.join
+isString          = require("abstract-object/lib/util/isString")
+isFunction        = require("abstract-object/lib/util/isFunction")
+TextCodec         = Codec['text']
+register          = Codec.register
+toPath            = path.join
+toPathArray       = path.toArray
+relativePath      = path.relative
+resolvePathArray  = path.resolveArray
 
 SUBKEY_SEPS = SEP.SUBKEY_SEPS
 UNSAFE_CHARS =  SEP.UNSAFE_CHARS
@@ -30,33 +32,78 @@ module.exports = class SubkeyCodec
     PATH_SEP = SUBKEY_SEPS[0][0]
     SUBKEY_SEP = SUBKEY_SEPS[1][0]
 
-  pathToPathArray = path.toArray
+  # apply parent's encodings to a op
+  addEncodings = (op, aParent) ->
+    if aParent && aParent._options
+      op.keyEncoding ||= aParent._options.keyEncoding
+      op.valueEncoding ||= aParent._options.valueEncoding
+    op
 
-  @getPathArray = getPathArray = (aPath, aParentPath) ->
+  @lowerBound: '\u0000'
+  @upperBound: '\udbff\udfff' #<U+10FFFF>
+    
+  @escapeString: escapeString = (aString, aUnSafeChars) ->
+    aUnSafeChars = UNSAFE_CHARS unless aUnSafeChars?
+    Codec.escapeString aString, aUnSafeChars
+  @unescapeString = unescapeString = decodeURIComponent
+
+
+  @getPathArray: getPathArray = (aPath, aParentPath) ->
     return aPath unless aPath?
     #is a subkey object?
     return aPath.pathAsArray() if isFunction(aPath.pathAsArray)
     if isString(aPath)
       if aParentPath
-        aPath = path.resolveArray(aParentPath, aPath)
+        aPath = resolvePathArray(aParentPath, aPath)
         aPath.shift(0,1)
-      else aPath = pathToPathArray(aPath)
+      else aPath = toPathArray(aPath)
     #is a path array:
     aPath
 
-  @resolveKeyPath = resolveKeyPath = (aPathArray, aKey)->
+  @prepareKeyPath: prepareKeyPath = (aPathArray, aKey, op) ->
     if isString(aKey) && aKey.length
-        vPath = path.resolveArray(aPathArray, aKey)
-        isAbsolutePath = vPath.shift(0,1)
-        aKey = vPath.pop()
-        [vPath, aKey]
-    else
-        [aPathArray, aKey]
+      aPathArray = resolvePathArray(aPathArray, aKey)
+      isAbsolutePath = aPathArray.shift(0,1)
+      aKey = aPathArray.pop()
+      if op.separator && op.separator != PATH_SEP
+        aKey = op.separator + aKey if aKey[0] != op.separator
+        op.separator = undefined if aKey[0] is op.separator
+      op._keyPath = [aPathArray, aKey]
+    op.path = aPathArray
+    op.key = aKey
+    return
 
-  @escapeString = escapeString = (aString, aUnSafeChars) ->
-    aUnSafeChars = UNSAFE_CHARS unless aUnSafeChars?
-    Codec.escapeString aString, aUnSafeChars
-  @unescapeString = unescapeString = decodeURIComponent
+  @prepareOperation: prepareOperation = (preHooks, operationType, aOperation, aPathArray, aKey)->
+    if aOperation.path
+      addEncodings(aOperation, aOperation.path) #if aOperation.path is a subkey object.
+      aOperation.path = getPathArray(aOperation.path)
+    if aPathArray
+      aPathArray = resolvePathArray aOperation.path, aPathArray if aOperation.path
+    else
+      aPathArray = aOperation.path
+    aKey = aOperation.key unless aKey
+    prepareKeyPath(aPathArray, aKey, aOperation)
+    delete aOperation.separator unless aOperation.separator
+    if preHooks and operationType and aOperation.triggerBefore isnt false
+      switch operationType
+        when PUT_OP, DEL_OP
+          triggerArgs = [operationType, aOperation]
+        when TRANS_OP
+          addOp = (aOperation) ->
+            if aOperation
+              #aOperation.path = op.path unless aOperation.path
+              #prepareOperation(aOperation)
+              ops.push(aOperation)
+            return
+          triggerArgs = [operationType, aOperation, addOp, ops]
+      if triggerArgs
+        result = preHooks.trigger operationType, triggerArgs
+    return result
+
+  @resolveKeyPath: resolveKeyPath = (aPathArray, aKey, op)->
+    op = {} unless op
+    prepareKeyPath(aPathArray, aKey, op)
+    [op.path, op.key]
 
   indexOfType = (s) ->
     i = s.length-1
@@ -99,6 +146,79 @@ module.exports = class SubkeyCodec
       aPath = PATH_SEP
     aPath + aSeperator + key
 
+  #return [path, key, separator, realSeparator]
+  #the realSeparator is optional, only (aSeparator && aSeparator !== seperator
+  @decode = _decode =  (s, aSeparator) ->
+    i = indexOfType(s)
+    if i >= 0
+      vSep = s[i]
+      if vSep == SUBKEY_SEP
+        vSep = PATH_SEP
+      else
+        j = SUBKEY_SEPS[1].indexOf(vSep)
+        vSep = PATH_SEP + SUBKEY_SEPS[0][j]
+
+      vKey = unescapeString(s.substring(i+1))
+      result = [s.substring(1, i).split(PATH_SEP).filter(Boolean).map(unescapeString), vKey, vSep]
+      result.push(s[i]) if (isString(aSeparator) && aSeparator isnt s[i])
+    result
+
+  @_encodeKey: _encodeKey = (aPathArray, aKey, keyEncoding, options)->
+    aKey = keyEncoding.encode(aKey) if keyEncoding
+    if options
+      vSep    = options.separator
+      vSepRaw = options.separatorRaw
+    encode aPathArray, aKey, vSep, vSepRaw
+
+  @encodeKey: encodeKey = (aPathArray, aKey, keyEncoding, options, operationType, preHooks)->
+    prepareOperation(preHooks, operationType, options, aPathArray, aKey)
+    aPathArray = options.path
+    aKey = options.key
+    _encodeKey aPathArray, aKey, keyEncoding, options
+
+  @decodeKey: decodeKey = (key, keyEncoding, options)->
+    #v=[parent, key, separator, realSeparator]
+    #realSeparator is optional only opts.separator && opts.separator != realSeparator
+    v = decode(key, options && options.separator)
+    vSep = v[2] #separator
+    vSep = PATH_SEP unless vSep?  #if the precodec is other codec.
+    key = if keyEncoding then keyEncoding.decode(v[1], options) else v[1]
+    if options
+      if options.absoluteKey
+          key = toPath(v[0]) + vSep + key
+      else if options.path && isString(key) && key != ""
+          vPath = relativePath(options.path, v[0])
+          if vPath is "" and vSep is PATH_SEP
+            vSep = "" 
+          else if vSep.length >= 2
+            vSep = vSep.substring(1)
+          key = vPath + vSep + key
+    else
+      key = v[1]
+    key
+
+  @encodeValue: (value, options)->
+    if encoding = Codec(options.valueEncoding)
+      encoding.encode value
+    else
+      value
+
+  @decodeValue: (value, options)->
+    if encoding = Codec(options.valueEncoding)
+      encoding.decode value
+    else
+      value
+
+  @applyEncoding: (options)->
+    if options
+      #options.keyEncoding = Codec(options.keyEncoding)
+      #options.keyEncoding = false if options.keyEncoding and options.keyEncoding.name is 'Text'
+      options.valueEncoding = Codec(options.valueEncoding)
+      options.valueEncoding = false if options.valueEncoding and options.valueEncoding.name is 'Text'
+      #options.encoding = Codec(options.encoding)
+      #options.encoding = false if options.encoding and options.encoding.name is 'Text'
+      #console.log 'keye=', options.keyEncoding.name if options.keyEncoding
+
   #the e is array[path, key, seperator, DontEscapeSep]
   #the seperator, DontEscapeSep is optional
   #DontEscapeSep: means do not escape the separator.
@@ -140,87 +260,4 @@ module.exports = class SubkeyCodec
     else if vSeperator.length >=2 && vSeperator[0] == PATH_SEP
       vPath = ""
     vPath + vSeperator + key
-
-  #return [path, key, separator, realSeparator]
-  #the realSeparator is optional, only (aSeparator && aSeparator !== seperator
-  @_decode = _decode =  (s, aSeparator) ->
-    i = indexOfType(s)
-    if i >= 0
-      vSep = s[i]
-      if vSep == SUBKEY_SEP
-        vSep = PATH_SEP
-      else
-        j = SUBKEY_SEPS[1].indexOf(vSep)
-        vSep = PATH_SEP + SUBKEY_SEPS[0][j]
-
-      vKey = unescapeString(s.substring(i+1))
-      result = [s.substring(1, i).split(PATH_SEP).filter(Boolean).map(unescapeString), vKey, vSep]
-      result.push(s[i]) if (isString(aSeparator) && aSeparator isnt s[i])
-    result
-
-  @encodeValue: (value, options)->
-    if encoding = Codec(options.valueEncoding) or Codec(options.encoding)
-      encoding.encode value
-    else
-      value
-  @decodeValue: (value, options)->
-    if encoding = Codec(options.valueEncoding) or Codec(options.encoding)
-      encoding.decode value
-    else
-      value
-  # options.path, options.separator
-  # key=[pathArray, key]
-  @encodeKey: (key, options)->
-    if options
-      key[1] = encoding.encode key[1] if encoding = Codec(options.keyEncoding) or Codec(options.encoding)
-      vSep    = options.separator
-      vSepRaw = options.separatorRaw
-      key.push vSep, vSepRaw
-    _encode key
-    
-    ###
-    vPath = options.path
-    vPath = if vPath then getPathArray(vPath) else []
-    vPath = resolveKeyPath vPath, key
-    console.log "p=", vPath
-    if options
-      vPath[1] = encoding.encode vPath[1] if encoding = Codec(options.keyEncoding) or Codec(options.encoding)
-      vSep    = options.separator
-      vSepRaw = options.separatorRaw
-      vPath.push vSep, vSepRaw
-    _encode vPath
-    ###
-
-  @lowerBound = '\u0000'
-  @upperBound = '\udbff\udfff'
-    
-  @decodeKey: (key, options)->
-    #v=[parent, key, separator, realSeparator]
-    #realSeparator is optional only opts.separator && opts.separator != realSeparator
-    v = _decode(key, options && options.separator)
-    vSep = v[2] #separator
-    vSep = PATH_SEP unless vSep?  #if the precodec is other codec.
-    if options
-      key = if encoding = Codec(options.keyEncoding) then encoding.decode(v[1], options) else v[1]
-      if options.absoluteKey
-          key = toPath(v[0]) + vSep + key
-      else if options.path && isString(key) && key != ""
-          vPath = path.relative(options.path, v[0])
-          if vPath is "" and vSep is PATH_SEP
-            vSep = "" 
-          else if vSep.length >= 2
-            vSep = vSep.substring(1)
-          key = vPath + vSep + key
-    else
-      key = v[1]
-    key
-  @applyEncoding: (options)->
-    if options
-      #options.keyEncoding = Codec(options.keyEncoding)
-      #options.keyEncoding = false if options.keyEncoding and options.keyEncoding.name is 'Text'
-      options.valueEncoding = Codec(options.valueEncoding)
-      options.valueEncoding = false if options.valueEncoding and options.valueEncoding.name is 'Text'
-      #options.encoding = Codec(options.encoding)
-      #options.encoding = false if options.encoding and options.encoding.name is 'Text'
-      #console.log 'keye=', options.keyEncoding.name if options.keyEncoding
 

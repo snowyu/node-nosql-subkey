@@ -5,12 +5,14 @@ minimatch             = require('minimatch')
 ltgt                  = require('ltgt')
 Errors                = require("abstract-object/Error")
 AbstractNoSQL         = require("abstract-nosql")
-EncodingNoSQL         = require("nosql-encoding")
+try EncodingNoSQL     = require("nosql-encoding")
 SecondaryCache        = require("secondary-cache")
 Codec                 = require("buffer-codec")
 try
   EncodingIterator    = require("encoding-iterator")
   AbstractIterator    = EncodingIterator.super_
+unless AbstractIterator then try
+  AbstractIterator    = require("abstract-iterator")
 inherits              = require("abstract-object/lib/util/inherits")
 isInheritedFrom       = require("abstract-object/lib/util/isInheritedFrom")
 isFunction            = require("abstract-object/lib/util/isFunction")
@@ -26,6 +28,17 @@ subkey                = require("./subkey")
 
 PATH_SEP              = codec.PATH_SEP
 SUBKEY_SEP            = codec.SUBKEY_SEP
+lowerBound            = codec.lowerBound
+upperBound            = codec.upperBound
+resolveKeyPath        = codec.resolveKeyPath
+prepareKeyPath        = codec.prepareKeyPath
+prepareOperation      = codec.prepareOperation
+_encodeKey            = codec._encodeKey
+encodeKey             = codec.encodeKey
+decodeKey             = codec.decodeKey
+#encode                = codec.encode
+#decode                = codec.decode
+getPathArray          = codec.getPathArray
 #inheritsDirectly      = util.inheritsDirectly
 #isArray               = util.isArray
 InvalidArgumentError  = Errors.InvalidArgumentError
@@ -34,9 +47,6 @@ WriteError            = Errors.WriteError
 toPath                = path.join
 relativePath          = path.relative
 resolvePathArray      = path.resolveArray
-encode                = codec.encode
-decode                = codec._decode
-getPathArray          = codec.getPathArray
 toLtgt                = ltgt.toLtgt
 
 class SubkeyCache
@@ -69,86 +79,6 @@ class SubkeyCache
 module.exports = class SubkeyNoSQL
   inherits SubkeyNoSQL, AbstractNoSQL
 
-  addEncodings = (op, aParent) ->
-    if aParent && aParent._options
-      op.keyEncoding ||= aParent._options.keyEncoding
-      op.valueEncoding ||= aParent._options.valueEncoding
-    op
-  resolveKeyPath = (aPathArray, aKey, op)->
-    op = {} unless op
-    prepareKeyPath(aPathArray, aKey, op)
-    [op.path, op.key]
-  prepareKeyPath = (aPathArray, aKey, op) ->
-    if isString(aKey) && aKey.length
-      aPathArray = resolvePathArray(aPathArray, aKey)
-      isAbsolutePath = aPathArray.shift(0,1)
-      aKey = aPathArray.pop()
-      if op.separator && op.separator != PATH_SEP
-        aKey = op.separator + aKey if aKey[0] != op.separator
-        op.separator = undefined if aKey[0] is op.separator
-      op._keyPath = [aPathArray, aKey]
-    op.path = aPathArray
-    op.key = aKey
-    return
-  prepareOperation = (operationType, aOperation, aPathArray, aKey)->
-    if aOperation.path
-      addEncodings(aOperation, aOperation.path) #if aOperation.path is a subkey object.
-      aOperation.path = getPathArray(aOperation.path)
-    if aPathArray
-      aPathArray = resolvePathArray aOperation.path, aPathArray if aOperation.path
-    else
-      aPathArray = aOperation.path
-    aKey = aOperation.key unless aKey
-    prepareKeyPath(aPathArray, aKey, aOperation)
-    delete aOperation.separator unless aOperation.separator
-    if operationType and aOperation.triggerBefore isnt false
-      switch operationType
-        when PUT_OP, DEL_OP
-          triggerArgs = [operationType, aOperation]
-        when TRANS_OP
-          addOp = (aOperation) ->
-            if aOperation
-              #aOperation.path = op.path unless aOperation.path
-              #prepareOperation(aOperation)
-              ops.push(aOperation)
-            return
-          triggerArgs = [operationType, aOperation, addOp, ops]
-      if triggerArgs
-        result = preHooks.trigger operationType, triggerArgs
-    return result
-  _encodeKey = (aPathArray, aKey, keyEncoding, options)->
-    aKey = keyEncoding.encode(aKey) if keyEncoding
-    if options
-      vSep    = options.separator
-      vSepRaw = options.separatorRaw
-    encode aPathArray, aKey, vSep, vSepRaw
-
-  encodeKey = (aPathArray, aKey, keyEncoding, options, operationType)->
-    prepareOperation(operationType, options, aPathArray, aKey)
-    aPathArray = options.path
-    aKey = options.key
-    _encodeKey aPathArray, aKey, keyEncoding, options
-  decodeKey = (key, keyEncoding, options)->
-    #v=[parent, key, separator, realSeparator]
-    #realSeparator is optional only opts.separator && opts.separator != realSeparator
-    v = decode(key, options && options.separator)
-    vSep = v[2] #separator
-    vSep = PATH_SEP unless vSep?  #if the precodec is other codec.
-    key = if keyEncoding then keyEncoding.decode(v[1], options) else v[1]
-    if options
-      if options.absoluteKey
-          key = toPath(v[0]) + vSep + key
-      else if options.path && isString(key) && key != ""
-          vPath = relativePath(options.path, v[0])
-          if vPath is "" and vSep is PATH_SEP
-            vSep = "" 
-          else if vSep.length >= 2
-            vSep = vSep.substring(1)
-          key = vPath + vSep + key
-    else
-      key = v[1]
-    key
-
   # Data Operation Type:
   @GET_OP   = GET_OP  = consts.GET_OP
   @PUT_OP   = PUT_OP  = consts.PUT_OP
@@ -159,7 +89,7 @@ module.exports = class SubkeyNoSQL
 
   constructor: (aClass)->
     if (this not instanceof SubkeyNoSQL)
-      vParentClass = isInheritedFrom aClass, EncodingNoSQL
+      vParentClass = isInheritedFrom aClass, EncodingNoSQL if EncodingNoSQL
       vParentClass = isInheritedFrom aClass, AbstractNoSQL unless vParentClass
       if vParentClass
         inheritsDirectly vParentClass, SubkeyNoSQL if vParentClass isnt SubkeyNoSQL
@@ -188,7 +118,7 @@ module.exports = class SubkeyNoSQL
     or return encoded string.
   ###
   encodeKey: (aPathArray, aKey, op, operationType, ops)->
-    result = prepareOperation(operationType, op, aPathArray, aKey)
+    result = prepareOperation(@preHooks, operationType, op, aPathArray, aKey)
     return false if result is HALT_OP
 
     keyEncoding = @keyEncoding op
@@ -201,7 +131,6 @@ module.exports = class SubkeyNoSQL
     keyEncoding = @keyEncoding options
     decodeKey key, keyEncoding, options
   setOpened: (isOpened, options)->
-    super(isOpened, options)
     if isOpened
       @preHooks = hooks()
       @postHooks = hooks()
@@ -213,6 +142,7 @@ module.exports = class SubkeyNoSQL
       @preHooks = null
       @postHooks = null
       @cache = null
+    super(isOpened, options)
   isExistsSync: (path, key, options) ->
     options = extend {}, @_options, options
     key = @encodeKey(path, key, options)
@@ -247,7 +177,7 @@ module.exports = class SubkeyNoSQL
       callback null, value
   getBufferSync: (path, key, destBuffer, options) ->
     options = extend {}, @_options, options
-    key = encodeKey path, key, options, GET_OP
+    key = @encodeKey path, key, options, GET_OP
     return false if key is false
     super(key, destBuffer, options)
   getBufferAsync: (path, key, destBuffer, options, callback) ->
@@ -363,7 +293,7 @@ module.exports = class SubkeyNoSQL
     #apply prehooks here.
     while i < operations.length
       op = operations[i]
-      result = prepareOperation(TRANS_OP, op)
+      result = prepareOperation(@preHooks, TRANS_OP, op)
       op._keyPath = [op.path, vKey] # keep the original key for postHook.
       if result is HALT_OP
         delete operations[i]
@@ -423,38 +353,7 @@ module.exports = class SubkeyNoSQL
     super(start, end, callback)
   iterator: (options) ->
     options = extend {}, @_options, options
-    vOptions = extend {}, options
-    vPath = options.path || []
-    valueEncoding = @valueEncoding options
-    #the key is lowerBound or upperBound.
-    #if opts.start is exists then lowBound key is opt.start
-    encodeKeyPath = (key) ->
-      vOptions.path = options.path
-      encodeKey(vPath, key, null, vOptions)
-
-    #convert the lower/upper bounds to real lower/upper bounds.
-    #codec.lowerBound, codec.upperBound are default bounds in case of the options have no bounds.
-    toLtgt(options, options, encodeKeyPath, codec.lowerBound, codec.upperBound) if options.bounded isnt false
-    options.keyAsBuffer = options.valueAsBuffer = false
-    #console.log("it:opts:", options)
     super(options)
-  createDecoder: (options) ->
-    options = extend {}, @_options, options
-    valueEncoding = @valueEncoding options
-    self = this
-    if options.keys isnt false && options.values isnt false
-      return (key, value) ->
-        result =
-          key: self.decodeKey(key, options)
-          value: if valueEncoding then valueEncoding.decode(value, options) else value
-        if options.absoluteKey isnt true
-          result.path = toPath(options.path)
-        result
-    if options.values isnt false
-      return (_, value) -> if valueEncoding then valueEncoding.decode(value, options) else value
-    if options.keys isnt false
-      return (key) -> self.decodeKey(key, options)
-    return ->
   _addHookTo: (hooks, opType, range, path, callback)->
     path = resolvePathArray @_options.path, path if @_options.path
     if isFunction(range)
