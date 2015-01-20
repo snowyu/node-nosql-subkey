@@ -23,8 +23,9 @@
   ],
   "dependencies": {
     "abstract-nosql": ">=2.0.0",
-    "abstract-object": ">=1.6.1",
+    "abstract-object": ">=1.6.2",
     "depd": "~1.0.0",
+    "encoding-iterator": ">=1.0.3",
     "ltgt": "~2.0.0",
     "minimatch": "~2.0.1",
     "secondary-cache": ">=1.1.2"
