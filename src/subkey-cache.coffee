@@ -1,5 +1,6 @@
 SecondaryCache        = require("secondary-cache")
 minimatch             = require('minimatch')
+inherits              = require("abstract-object/lib/util/inherits")
 
 module.exports = class SubkeyCache
   inherits SubkeyCache, SecondaryCache
