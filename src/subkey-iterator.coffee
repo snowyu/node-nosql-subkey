@@ -1,5 +1,5 @@
 # Copyright (c) 2015 Riceball LEE, MIT License
-AbstractIterator      = require("abstract-iterator")
+EncodingIterator      = require("encoding-iterator")
 inherits              = require("abstract-object/lib/util/inherits")
 isArray               = require("abstract-object/lib/util/isArray")
 extend                = require("abstract-object/lib/util/_extend")
@@ -11,13 +11,13 @@ upperBound            = codec.upperBound
 encodeKey             = codec.encodeKey
 decodeKey             = codec.decodeKey
 
-module.exports =  class SubkeyIterator
-  inherits EncodingIterator, AbstractIterator
+module.exports = class SubkeyIterator
+  inherits SubkeyIterator, EncodingIterator
 
   encodeOptions: (options)->
     vOptions = extend {}, options
     vPath = options.path || []
-    options.valueEncoding = valueEncoding = Codec(options.valueEncoding)
+    options.valueEncoding = Codec(options.valueEncoding)
     options.keyEncoding = keyEncoding = Codec(options.keyEncoding)
     #the key is lowerBound or upperBound.
     #if opts.start is exists then lowBound key is opt.start
