@@ -2,7 +2,7 @@
 
 Add the subkey/sublevel feature to [abstract-nosql](https://github.com/snowyu/node-abstract-nosql) database.
 
-the subkey feature is a special [encoding](https://github.com/snowyu/node-nosql-encoding) feature.
+the subkey feature is a special [encoding](https://github.com/snowyu/node-nosql-encoding) feature with streamable build-in.
 It's inherited from [nosql-encoding](https://github.com/snowyu/node-nosql-encoding).
 
 ## Purpose
