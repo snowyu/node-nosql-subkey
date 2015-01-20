@@ -3,13 +3,14 @@
 #util                  = require("abstract-object/lib/util")
 ltgt                  = require('ltgt')
 Errors                = require("abstract-object/Error")
-try EncodingNoSQL     = require("nosql-encoding")
-#AbstractNoSQL         = EncodingNoSQL.super_
-AbstractNoSQL         = require("abstract-nosql")
+EncodingNoSQL         = require("nosql-encoding")
+AbstractNoSQL         = EncodingNoSQL.super_
+#AbstractNoSQL         = require("abstract-nosql")
 SubkeyIterator        = require("./subkey-iterator")
 SubkeyCache           = require("./subkey-cache")
 Codec                 = require("buffer-codec")
 inherits              = require("abstract-object/lib/util/inherits")
+inheritsDirectly      = require("abstract-object/lib/util/inheritsDirectly")
 isInheritedFrom       = require("abstract-object/lib/util/isInheritedFrom")
 isFunction            = require("abstract-object/lib/util/isFunction")
 isString              = require("abstract-object/lib/util/isString")
@@ -76,21 +77,7 @@ module.exports = class SubkeyNoSQL
       else
         throw new InvalidArgumentError("class should be inherited from EncodingNoSQL or AbstractNoSQL")
     @Subkey = subkey(@)
-    super
-  keyEncoding: (options)->
-    if options and options.keyEncoding
-      encoding = options.keyEncoding
-      encoding = Codec(encoding) if encoding
-    else if @_options
-      encoding = @_options.keyEncoding
-    encoding
-  valueEncoding: (options)->
-    if options and options.valueEncoding
-      encoding = options.valueEncoding
-      encoding = Codec(encoding) if encoding
-    else if @_options
-      encoding = @_options.valueEncoding
-    encoding
+    AbstractNoSQL.constructor.apply(this, arguments)
   ### 
     first check preHooks if operationType
     return falsse if prehooks disallow this operation 
@@ -114,6 +101,7 @@ module.exports = class SubkeyNoSQL
       @preHooks = hooks()
       @postHooks = hooks()
       @cache = new SubkeyCache(options)
+      options.path = getPathArray options.path if options and options.path
     else
       @preHooks.free() if @preHooks
       @postHooks.free() if @postHooks
@@ -122,27 +110,38 @@ module.exports = class SubkeyNoSQL
       @postHooks = null
       @cache = null
     super(isOpened, options)
-  isExistsSync: (path, key, options) ->
+  getPath: (options) ->
+    result = if options and options.path then getPathArray(options.path) else "."
+    vParentPath = if @_options and @_options.path then @_options.path else PATH_SEP
+    result = resolvePathArray vParentPath, result
+    result.shift(0,1)
+    result
+  isExistsSync: (key, options) ->
+    path = @getPath(options)
     options = extend {}, @_options, options
     key = @encodeKey(path, key, options)
     return false if key is false
-    super key, options
-  isExistsAsync: (path, key, options, callback) ->
+    AbstractNoSQL.isExistsAsync.call @, key, options
+  isExistsAsync: (key, options, callback) ->
+    path = @getPath(options)
     if isFunction options
       callback = options
       options = undefined
     options = extend {}, @_options, options
     key = @encodeKey(path, key, options)
-    super(key, options, callback)
-  getSync: (path, key, options) ->
+    return false if key is false
+    AbstractNoSQL.isExistsAsync.call @, key, options, callback
+  getSync: (key, options) ->
+    path = @getPath(options)
     options = extend {}, @_options, options
     key = @encodeKey path, key, options, GET_OP
     return false if key is false
-    result = super(key, options)
+    result = AbstractNoSQL.getSync.call(@, key, options)
     encoding = @valueEncoding options
     result = encoding.decode(result) if encoding
     result
-  getAsync: (path, key, options, callback) ->
+  getAsync: (key, options, callback) ->
+    path = @getPath(options)
     if isFunction options
       callback = options
       options = undefined
@@ -150,24 +149,27 @@ module.exports = class SubkeyNoSQL
     key = @encodeKey(path, key, options, GET_OP)
     return false if key is false
     encoding = @valueEncoding options
-    super key, options, (err, value)->
+    AbstractNoSQL.getAsync.call @, key, options, (err, value)=>
       return @dispatchError err, callback if err
       value = encoding.decode(value) if encoding
       callback null, value
-  getBufferSync: (path, key, destBuffer, options) ->
+  getBufferSync: (key, destBuffer, options) ->
+    path = @getPath(options)
     options = extend {}, @_options, options
     key = @encodeKey path, key, options, GET_OP
     return false if key is false
-    super(key, destBuffer, options)
-  getBufferAsync: (path, key, destBuffer, options, callback) ->
+    AbstractNoSQL.getBufferSync.call(@, key, destBuffer, options)
+  getBufferAsync: (key, destBuffer, options, callback) ->
+    path = @getPath(options)
     if isFunction options
       callback = options
       options = undefined
     options = extend {}, @_options, options
     key = @encodeKey(path, key, options, GET_OP)
     return false if key is false
-    super(key, destBuffer, options, callback)
-  mGetSync: (path, keys, options) ->
+    AbstractNoSQL.getBufferAsync.call(@, key, destBuffer, options, callback)
+  mGetSync: (keys, options) ->
+    path = @getPath(options)
     options = extend {}, @_options, options
     valueEncoding = @valueEncoding options
     result = []
@@ -177,7 +179,7 @@ module.exports = class SubkeyNoSQL
       vOptions.path = options.path
       result.push k if k isnt false
         
-    result = super(result, options)
+    result = AbstractNoSQL.mGetSync.call(@, result, options)
     if options.keys isnt false
       result.map (item)=>
         item.key = @decodeKey item.key, options
@@ -185,7 +187,8 @@ module.exports = class SubkeyNoSQL
     else
       result = result.map valueEncoding.decode.bind(valueEncoding) if valueEncoding
     result
-  mGetAsync: (path, keys, options, callback) ->
+  mGetAsync: (keys, options, callback) ->
+    path = @getPath(options)
     if isFunction options
       callback = options
       options = undefined
@@ -198,8 +201,8 @@ module.exports = class SubkeyNoSQL
       vOptions.path = options.path
       vKeys.push k if k isnt false
     that = @
-    super vKeys, options, (err, result)->
-      return @dispatchError err, callback if err
+    AbstractNoSQL.mGetAsync.call @, vKeys, options, (err, result)->
+      return that.dispatchError err, callback if err
       if options.keys isnt false
         result.map (item)->
           item.key = that.decodeKey item.key, options
@@ -207,13 +210,14 @@ module.exports = class SubkeyNoSQL
       else
         result = result.map valueEncoding.decode.bind(valueEncoding) if valueEncoding
       callback null, result
-  putSync: (path, key, value, options) ->
+  putSync: (key, value, options) ->
+    path = @getPath(options)
     options = extend {}, @_options, options
     key = @encodeKey path, key, options, PUT_OP
     return false if key is false
     valueEncoding = @valueEncoding options
     value = valueEncoding.encode(value) if valueEncoding
-    result = super(key, value, options)
+    result = AbstractNoSQL.putSync.call(@, key, value, options)
     if result
       vKeyPath = options._keyPath
       options.path = vKeyPath[0]
@@ -221,7 +225,8 @@ module.exports = class SubkeyNoSQL
       delete options._keyPath
       @postHooks.trigger PUT_OP, vKeyPath, [PUT_OP, options]
     result
-  putAsync: (path, key, value, options, callback) ->
+  putAsync: (key, value, options, callback) ->
+    path = @getPath(options)
     if isFunction options
       callback = options
       options = undefined
@@ -230,7 +235,7 @@ module.exports = class SubkeyNoSQL
     return false if key is false
     valueEncoding = @valueEncoding options
     value = valueEncoding.encode(value) if valueEncoding
-    super key, value, options, (err, result)=>
+    AbstractNoSQL.putAsync.call @, key, value, options, (err, result)=>
       return @dispatchError err, callback if err
       vKeyPath = options._keyPath
       options.path = vKeyPath[0]
@@ -238,11 +243,12 @@ module.exports = class SubkeyNoSQL
       delete options._keyPath
       @postHooks.trigger PUT_OP, vKeyPath, [PUT_OP, options]
       callback(null, result) if callback
-  delSync: (path, key, options) ->
+  delSync: (key, options) ->
+    path = @getPath(options)
     options = extend {}, @_options, options
     key = @encodeKey key, path, options, DEL_OP
     return false if key is false
-    result = super(key, options)
+    result = AbstractNoSQL.delSync.call(@, key, options)
     if result
       vKeyPath = options._keyPath
       options.path = vKeyPath[0]
@@ -250,13 +256,15 @@ module.exports = class SubkeyNoSQL
       delete options._keyPath
       @postHooks.trigger DEL_OP, vKeyPath, [DEL_OP, options]
     result
-  delAsync: (path, key, options, callback) ->
+  delAsync: (key, options, callback) ->
+    path = @getPath(options)
     if isFunction options
       callback = options
       options = undefined
     options = extend {}, @_options, options
     key = @encodeKey key, path, options, DEL_OP
-    super key, options, (err, result)=>
+    return false if key is false
+    AbstractNoSQL.delAsync.call @, key, options, (err, result)=>
       return @dispatchError err, callback if err
       vKeyPath = options._keyPath
       options.path = vKeyPath[0]
@@ -272,6 +280,7 @@ module.exports = class SubkeyNoSQL
     #apply prehooks here.
     while i < operations.length
       op = operations[i]
+      op.path = @getPath(op)
       result = prepareOperation(@preHooks, TRANS_OP, op)
       op._keyPath = [op.path, vKey] # keep the original key for postHook.
       if result is HALT_OP
@@ -313,28 +322,32 @@ module.exports = class SubkeyNoSQL
         callback err, result if callback
     return
   #TODO: approximateSizeSync should not be here.
-  approximateSizeSync:(path, start, end, options) ->
+  approximateSizeSync:(start, end, options) ->
+    path = @getPath(options)
     keyEncoding = @keyEncoding()
     options = extend {}, @_options, options
     vOptions = extend {}, options
     start = encodeKey(path, start, keyEncoding, options) if start isnt undefined
     vOptions.path = options.path
     end = encodeKey(path, end, keyEncoding, options) if end isnt undefined
-    super(start, end)
+    AbstractNoSQL.approximateSizeSync.call(@, start, end)
   #TODO: approximateSizeAsync should not be here.
-  approximateSizeAsync:(path, start, end, callback) ->
+  approximateSizeAsync:(start, end, callback) ->
+    path = @getPath(options)
     keyEncoding = @keyEncoding()
     options = extend {}, @_options, options
     vOptions = extend {}, options
     start = encodeKey(path, start, keyEncoding, options) if start isnt undefined
     vOptions.path = options.path
     end = encodeKey(path, end, keyEncoding, options) if end isnt undefined
-    super(start, end, callback)
+    AbstractNoSQL.approximateSizeAsync.call(@, start, end, callback)
   iterator: (options) ->
     options = extend {}, @_options, options
     super(options)
   _addHookTo: (hooks, opType, range, path, callback)->
-    path = resolvePathArray @_options.path, path if @_options.path
+    if @_options.path
+      path = resolvePathArray @_options.path, path
+      path.shift(0,1)
     if isFunction(range)
       callback = range
       range = [path]
@@ -345,7 +358,7 @@ module.exports = class SubkeyNoSQL
     else
       #TODO: handle ranges, needed for level-live-stream, etc.
       throw new Error("not implemented yet")
-    
+
     hooks.add opType, range, callback
   pre: (opType, range, path, callback)->
     @_addHookTo @preHooks, opType, range, path, callback

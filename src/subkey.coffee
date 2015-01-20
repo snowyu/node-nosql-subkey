@@ -225,7 +225,7 @@ module.exports = (aDbCore, aCreateReadStream = ReadStream, aCreateWriteStream = 
         aKeyPattern = toPath @_pathArray, "*"
       else
         aKeyPattern = resolvePath(@_pathArray, aKeyPattern)
-      vSubkeys = aDbCore.subkeys(aKeyPattern)
+      vSubkeys = aDbCore.cache.subkeys(aKeyPattern)
       for k of vSubkeys
         vSubkeys[k].free()
       return
@@ -243,7 +243,7 @@ module.exports = (aDbCore, aCreateReadStream = ReadStream, aCreateWriteStream = 
           separator: op.separator
           key: op.key
           value: op.value
-          path: op.path or vPath
+          path: resolvePathArray vPath, op.path
           keyEncoding: op.keyEncoding # *
           valueEncoding: op.valueEncoding # * (TODO: encodings on sublevel)
           type: op.type
@@ -279,7 +279,8 @@ module.exports = (aDbCore, aCreateReadStream = ReadStream, aCreateWriteStream = 
         value = @value
       opts = @mergeOpts(opts)
       assignDeprecatedPrefixOption opts
-      aDbCore.putSync @_pathArray, key, opts
+      opts.path = getPathArray opts.path, @_pathArray
+      aDbCore.putSync key, opts
     putAsync: (key, value, opts, callback) ->
       if arguments.length is 0 or isFunction(key)
         cb = key
@@ -287,7 +288,8 @@ module.exports = (aDbCore, aCreateReadStream = ReadStream, aCreateWriteStream = 
         value = @value
       opts = @mergeOpts(opts)
       assignDeprecatedPrefixOption opts
-      aDbCore.putAsync @_pathArray, key, opts, cb
+      opts.path = getPathArray opts.path, @_pathArray
+      aDbCore.putAsync key, opts, cb
     put: (key, value, opts, cb) ->
       if isFunction(key) or arguments.length is 0
         cb = key
@@ -307,17 +309,38 @@ module.exports = (aDbCore, aCreateReadStream = ReadStream, aCreateWriteStream = 
         key = @path() #use absolute key path to delete alias key itself
       opts = @mergeOpts(opts)
       assignDeprecatedPrefixOption opts
-      aDbCore.delSync @_pathArray, key, opts
+      opts.path = getPathArray opts.path, @_pathArray
+      aDbCore.delSync key, opts
     delAsync: (key, opts, cb) ->
       if arguments.length is 0 or isFunction(key)
         cb = key
         key = @path() #use absolute key path to delete alias key itself
-      aDbCore.delSync @_pathArray, key, @mergeOpts(opts), cb
+        opts = {}
+      else if isFunction opts
+        cb = opts
+        opts = {}
+      opts = @mergeOpts(opts)
+      assignDeprecatedPrefixOption opts
+      opts.path = getPathArray opts.path, @_pathArray
+      aDbCore.delAsync key, opts, cb
     del: (key, opts, cb) ->
       if isFunction(key) or arguments.length is 0
         cb = key
         key = @path() #use absolute key path to delete alias key itself
       @_doOperation({key:key, type: "del"}, opts, cb)
+    batchSync: (ops, opts) ->
+      opts = @mergeOpts(opts)
+      assignDeprecatedPrefixOption opts
+      opts.path = getPathArray opts.path, @_pathArray
+      aDbCore.batchSync ops, opts
+    batchAsync: (ops, opts, callback) ->
+      if isFunction opts
+        callback = opts
+        opts = {}
+      opts = @mergeOpts(opts)
+      assignDeprecatedPrefixOption opts
+      opts.path = getPathArray opts.path, @_pathArray
+      aDbCore.batchAsync ops, opts, callback
     batch: (ops, opts, cb) ->
       @_doOperation(ops, opts, cb)
     getSync: (key, opts) ->
@@ -326,7 +349,8 @@ module.exports = (aDbCore, aCreateReadStream = ReadStream, aCreateWriteStream = 
         key = "."
       opts = @mergeOpts(opts)
       assignDeprecatedPrefixOption opts
-      aDbCore.getSync @_pathArray, key, opts
+      opts.path = getPathArray opts.path, @_pathArray
+      aDbCore.getSync key, opts
     getAsync: (key, opts, cb)->
       if isFunction opts
         cb = opts
@@ -340,8 +364,9 @@ module.exports = (aDbCore, aCreateReadStream = ReadStream, aCreateWriteStream = 
         key = "."
       opts = @mergeOpts(opts)
       assignDeprecatedPrefixOption opts
+      opts.path = getPathArray opts.path, @_pathArray
       that = @
-      aDbCore.getAsync @_pathArray, key, opts, (err, value) ->
+      aDbCore.getAsync key, opts, (err, value) ->
         return that.dispatchError(err, cb) if err
         cb.call that, null, value if cb
     get: (key, opts, cb) ->
