@@ -1,4 +1,9 @@
-# nosql-subkey
+## nosql-subkey [![npm](https://img.shields.io/npm/v/nosql-subkey.svg)](https://npmjs.org/package/nosql-subkey)
+
+[![Build Status](https://img.shields.io/travis/snowyu/node-nosql-subkey/master.svg)](http://travis-ci.org/snowyu/node-nosql-subkey) 
+[![downloads](https://img.shields.io/npm/dm/nosql-subkey.svg)](https://npmjs.org/package/nosql-subkey) 
+[![license](https://img.shields.io/npm/l/nosql-subkey.svg)](https://npmjs.org/package/nosql-subkey) 
+
 
 Add the subkey/sublevel feature to [abstract-nosql](https://github.com/snowyu/node-abstract-nosql) database.
 
