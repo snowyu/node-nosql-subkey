@@ -1,6 +1,6 @@
 EncodingNoSQL   = require 'nosql-encoding'
 sinon           = require 'sinon'
-inherits        = require("abstract-object/lib/util/inherits")
+inherits        = require 'abstract-object/lib/util/inherits'
 FakeIterator    = require './fake-iterator'
 
 module.exports = class FakeDB
