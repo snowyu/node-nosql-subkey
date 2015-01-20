@@ -1,18 +1,14 @@
 # Copyright (c) 2015 Riceball LEE, MIT License
 #xtend                 = require("xtend")
 #util                  = require("abstract-object/lib/util")
-minimatch             = require('minimatch')
 ltgt                  = require('ltgt')
 Errors                = require("abstract-object/Error")
-AbstractNoSQL         = require("abstract-nosql")
 try EncodingNoSQL     = require("nosql-encoding")
-SecondaryCache        = require("secondary-cache")
+#AbstractNoSQL         = EncodingNoSQL.super_
+AbstractNoSQL         = require("abstract-nosql")
+SubkeyIterator        = require("./subkey-iterator")
+SubkeyCache           = require("./subkey-cache")
 Codec                 = require("buffer-codec")
-try
-  EncodingIterator    = require("encoding-iterator")
-  AbstractIterator    = EncodingIterator.super_
-unless AbstractIterator then try
-  AbstractIterator    = require("abstract-iterator")
 inherits              = require("abstract-object/lib/util/inherits")
 isInheritedFrom       = require("abstract-object/lib/util/isInheritedFrom")
 isFunction            = require("abstract-object/lib/util/isFunction")
@@ -49,35 +45,9 @@ relativePath          = path.relative
 resolvePathArray      = path.resolveArray
 toLtgt                = ltgt.toLtgt
 
-class SubkeyCache
-  inherits SubkeyCache, SecondaryCache
-
-  constructor: -> super
-  createSubkey: (keyPath, Subkey, options, callback) ->
-    if options && options.forceCreate == true
-      result = new Subkey(options, callback)
-    else
-      result = @get keyPath
-      if result
-        result.addRef() if !options || options.addRef != false
-        callback(null, result) if callback
-      else
-        result = new Subkey(options, callback)
-        @set keyPath, result, options
-        result.on "destroyed", (item) =>
-          @del keyPath
-    result
-  subkeys: (aKeyPattern)->
-    result = {}
-    if aKeyPattern
-      @forEach (v,k)-> result[k] = v if minimatch(k, aKeyPattern)
-    else
-      @forEach (v,k)-> result[k] = v
-    result
-
 
 module.exports = class SubkeyNoSQL
-  inherits SubkeyNoSQL, AbstractNoSQL
+  inherits SubkeyNoSQL, EncodingNoSQL
 
   # Data Operation Type:
   @GET_OP   = GET_OP  = consts.GET_OP
@@ -89,10 +59,19 @@ module.exports = class SubkeyNoSQL
 
   constructor: (aClass)->
     if (this not instanceof SubkeyNoSQL)
+      if isInheritedFrom aClass, 'SubkeyNoSQL'
+        throw new InvalidArgumentError("this class has already been subkey-able.")
       vParentClass = isInheritedFrom aClass, EncodingNoSQL if EncodingNoSQL
-      vParentClass = isInheritedFrom aClass, AbstractNoSQL unless vParentClass
+      vParentClass = isInheritedFrom aClass, 'AbstractNoSQL' unless vParentClass
       if vParentClass
-        inheritsDirectly vParentClass, SubkeyNoSQL if vParentClass isnt SubkeyNoSQL
+        inheritsDirectly vParentClass, SubkeyNoSQL
+        vIteratorClass = aClass::IteratorClass
+        if vIteratorClass and not isInheritedFrom vIteratorClass, 'SubkeyIterator'
+          if vIt = isInheritedFrom vIteratorClass, 'EncodingIterator'
+            vIteratorClass = vIt
+          else
+            vIteratorClass = isInheritedFrom vIteratorClass, 'AbstractIterator'
+          inheritsDirectly vIteratorClass, SubkeyIterator if vIteratorClass
         return aClass
       else
         throw new InvalidArgumentError("class should be inherited from EncodingNoSQL or AbstractNoSQL")
