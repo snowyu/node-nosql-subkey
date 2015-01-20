@@ -114,13 +114,13 @@ module.exports = class SubkeyCodec
       if (SUBKEY_SEPS[1].indexOf(c) >=0) then return i
       --i
     return -1
-  @encode = (aPath, aKey, aSeperator, dontEscapeSeperator)->
-    keyIsStr = isString(aKey) and aKey.length isnt 0
+  @encode =encode = (aPath, aKey, aSeperator, dontEscapeSeperator)->
+    keyIsStr = isString(aKey) and aKey.length > 0
     hasSep   = !!aSeperator
     aSeperator = SUBKEY_SEP unless aSeperator
     if keyIsStr
-      if hasSep && key[0] == aSeperator then key = key.substring(1)
-      key = escapeString(key)
+      if hasSep && aKey[0] == aSeperator then aKey = aKey.substring(1)
+      aKey = escapeString(aKey)
     if dontEscapeSeperator is true
       aSeperator = PATH_SEP + aSeperator if hasSep and aSeperator isnt PATH_SEP
       hasSep = false
@@ -133,10 +133,10 @@ module.exports = class SubkeyCodec
         aSeperator = PATH_SEP + aSeperator
     else if keyIsStr
       #try to find the separator on the key
-      i = SUBKEY_SEPS[0].indexOf(key[0], 1)
+      i = SUBKEY_SEPS[0].indexOf(aKey[0], 1)
       if i > 0
           vSeperator = PATH_SEP + SUBKEY_SEPS[1][i]
-          key = key.substring(1)
+          aKey = aKey.substring(1)
     #console.log("codec.encode:",path.join(e[0]) + vSeperator + key)
     #TODO: I should encode with path.join(e[0], vSeperator + key)) simply in V8.
     #      all separators are same now.
@@ -146,7 +146,7 @@ module.exports = class SubkeyCodec
       aPath = ""
     else
       aPath = PATH_SEP
-    aPath + aSeperator + key
+    aPath + aSeperator + aKey
 
   #return [path, key, separator, realSeparator]
   #the realSeparator is optional, only (aSeparator && aSeparator !== seperator
@@ -181,7 +181,7 @@ module.exports = class SubkeyCodec
   @decodeKey: decodeKey = (key, keyEncoding, options)->
     #v=[parent, key, separator, realSeparator]
     #realSeparator is optional only opts.separator && opts.separator != realSeparator
-    v = decode(key, options && options.separator)
+    v = _decode(key, options && options.separator)
     vSep = v[2] #separator
     vSep = PATH_SEP unless vSep?  #if the precodec is other codec.
     key = if keyEncoding then keyEncoding.decode(v[1], options) else v[1]
