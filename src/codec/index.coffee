@@ -63,6 +63,7 @@ module.exports = class SubkeyCodec
   @prepareKeyPath: prepareKeyPath = (aPathArray, aKey, op) ->
     if isString(aKey) && aKey.length
       aPathArray = resolvePathArray(aPathArray, aKey)
+      aPathArray.shift(0,1)
       isAbsolutePath = aPathArray.shift(0,1)
       aKey = aPathArray.pop()
       if op.separator && op.separator != PATH_SEP
@@ -76,11 +77,12 @@ module.exports = class SubkeyCodec
   @prepareOperation: prepareOperation = (preHooks, operationType, aOperation, aPathArray, aKey)->
     if aOperation.path
       addEncodings(aOperation, aOperation.path) #if aOperation.path is a subkey object.
-      aOperation.path = getPathArray(aOperation.path)
-    if aPathArray
-      aPathArray = resolvePathArray aOperation.path, aPathArray if aOperation.path
-    else
-      aPathArray = aOperation.path
+      #aOperation.path = getPathArray(aOperation.path)
+    #if aPathArray
+    #  aPathArray = resolvePathArray aOperation.path, aPathArray if aOperation.path
+    #else
+    #  aPathArray = aOperation.path
+    aPathArray = aOperation.path unless aPathArray
     aKey = aOperation.key unless aKey
     prepareKeyPath(aPathArray, aKey, aOperation)
     delete aOperation.separator unless aOperation.separator
