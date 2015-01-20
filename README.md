@@ -65,7 +65,6 @@ The key is always string only unless it's an index.
 * Value
   * can not be undefined, it used as deleted.
   * can be null.
-  * get {asBuffer: false} can improve performance.
 
 ## Stability
 
