@@ -13,8 +13,14 @@ inherits        = require 'abstract-object/lib/util/inherits'
 isInheritedFrom = require 'abstract-object/lib/util/isInheritedFrom'
 isObject        = require 'abstract-object/lib/util/isObject'
 FakeDB          = require './fake-nosql'
-setImmediate    = setImmediate || process.nextTick
-InvalidArgumentError = Errors.InvalidArgumentError
+codec           = require '../src/codec'
+path            = require '../src/path'
+
+setImmediate          = setImmediate || process.nextTick
+InvalidArgumentError  = Errors.InvalidArgumentError
+PATH_SEP              = codec.PATH_SEP
+SUBKEY_SEP            = codec.SUBKEY_SEP
+toPath                = path.join
 
 chai.use(sinonChai)
 
@@ -33,44 +39,83 @@ describe "SubkeyNoSQL", ->
   after ->
     @db.close()
 
+  testOpen = (db)->
+    should.exist db.Subkey
+    should.exist db.preHooks
+    should.exist db.postHooks
+    should.exist db.cache
   describe ".open", ->
-    (->
-      it "should set string encoding when open", ->
-        @db.open({keyEncoding:'json', valueEncoding: 'text'})
-        @db._options.keyEncoding.should.be.equal Codec('json')
-        @db._options.valueEncoding.should.be.equal Codec('text')
-      it "should set encoding instance when open", ->
-        json = new Codec['json']
-        @db.open({keyEncoding:json})
-        @db._options.keyEncoding.should.be.equal json
-        should.not.exist @db._options.valueEncoding
-      it "should set undefined encoding when open unknown encoding", ->
-        @db.open({keyEncoding:'Not FOund', valueEncoding: 'No SUch'})
-        should.not.exist @db._options.keyEncoding
-        should.not.exist @db._options.valueEncoding
-    )()
+    it "should set string encoding", ->
+      @db.open({keyEncoding:'json', valueEncoding: 'text'})
+      @db._options.keyEncoding.should.be.equal Codec('json')
+      @db._options.valueEncoding.should.be.equal Codec('text')
+      testOpen @db
+    it "should set encoding instance", ->
+      json = new Codec['json']
+      @db.open({keyEncoding:json})
+      @db._options.keyEncoding.should.be.equal json
+      should.not.exist @db._options.valueEncoding
+      testOpen @db
+    it "should set undefined encoding when open unknown encoding", ->
+      @db.open({keyEncoding:'Not FOund', valueEncoding: 'No SUch'})
+      should.not.exist @db._options.keyEncoding
+      should.not.exist @db._options.valueEncoding
+      testOpen @db
+    it "should set options.path", ->
+      @db.open({path:'/test'})
+      @db._options.path.should.be.deep.equal ['test']
+      testOpen @db
 
-###
   describe ".isExistsSync", ->
     it "should encode key", ->
-      @db.open({keyEncoding:'json'})
+      @db.open({keyEncoding:'json', path: toPath 'root', 'path1'})
       expectedKey = {myKeyName: 12345}
       @db.isExistsSync expectedKey
-      @db._isExistsSync.should.have.been.calledWith JSON.stringify expectedKey
+      #expectedKey = codec.encodeKey
+      expectedKey = "/root/path1"+ SUBKEY_SEP + JSON.stringify expectedKey
+      @db._isExistsSync.should.have.been.calledWith expectedKey
+      @db._isExistsSync.should.have.been.calledOnce
+    it "should encode key with options.path", ->
+      @db.open({keyEncoding:'json', path: toPath 'root', 'path1'})
+      expectedKey = {myKeyName: 12345}
+      @db._isExistsSync.reset()
+      @db.isExistsSync expectedKey, path: 'other'
+      #expectedKey = codec.encodeKey
+      expectedKey = toPath(PATH_SEP,"root","path1", "other") + SUBKEY_SEP + JSON.stringify expectedKey
+      @db._isExistsSync.should.have.been.calledWith expectedKey
+      @db._isExistsSync.should.have.been.calledOnce
+
   describe ".isExists", ->
     it "should encode key sync", ->
-      @db.open({keyEncoding:'json'})
+      @db.open({keyEncoding:'json', path: toPath 'root', 'path1'})
       expectedKey = {myKeyName: 12345}
+      @db._isExistsSync.reset()
       @db.isExists expectedKey
-      @db._isExistsSync.should.have.been.calledWith JSON.stringify expectedKey
+      expectedKey = "/root/path1"+ SUBKEY_SEP + JSON.stringify expectedKey
+      @db._isExistsSync.should.have.been.calledWith expectedKey
+      @db._isExistsSync.should.have.been.calledOnce
     it "should encode key async", (done)->
-      @db.open({keyEncoding:'json'})
-      expectedKey = {myKeyName: 12}
+      @db.open({keyEncoding:'json', path: toPath 'root', 'path1'})
+      expectedKey = {myKeyName: 12345}
+      @db._isExistsSync.reset()
       @db.isExists expectedKey, (err, result)=>
+        expectedKey = "/root/path1"+ SUBKEY_SEP + JSON.stringify expectedKey
         should.not.exist err
-        @db._isExistsSync.should.have.been.calledWith JSON.stringify expectedKey
+        @db._isExistsSync.should.have.been.calledWith expectedKey
+        @db._isExistsSync.should.have.been.calledOnce
+        done()
+    it "should encode key with options.path async", (done)->
+      @db.open({keyEncoding:'json', path: toPath 'root', 'path1'})
+      expectedKey = {myKeyName: 12345}
+      @db._isExistsSync.reset()
+      @db.isExists expectedKey, {path: 'other'}, (err, result)=>
+        expectedKey = "/root/path1/other"+ SUBKEY_SEP + JSON.stringify expectedKey
+        should.not.exist err
+        @db._isExistsSync.should.have.been.calledWith expectedKey
+        @db._isExistsSync.should.have.been.calledOnce
         done()
 
+###
   describe ".getBuffer directly", ->
     describe ".getBufferSync", ->
       it "should encode key", ->
