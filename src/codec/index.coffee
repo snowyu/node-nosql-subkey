@@ -104,7 +104,7 @@ module.exports = class SubkeyCodec
               #prepareOperation(aOperation)
               ops.push(aOperation)
             return
-          triggerArgs = [operationType, aOperation, addOp, ops]
+          triggerArgs = [operationType, aOperation, addOp]
       if triggerArgs
         result = preHooks.trigger operationType, triggerArgs
     return result

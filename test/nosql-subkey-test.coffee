@@ -333,90 +333,75 @@ describe "SubkeyNoSQL", ->
         expectedValue = JSON.stringify expectedValue
         @db._putSync.should.have.been.calledWith expectedKey, expectedValue
         done()
-###
 
   describe ".delSync", ->
     it "should encode key", ->
       @db.open({keyEncoding:'json', valueEncoding: 'json'})
       expectedKey = myKeyName: Math.random()
+      @db._delSync.reset()
       @db.delSync expectedKey
-      @db._delSync.should.have.been.calledWith JSON.stringify expectedKey
+      expectedKey = getEncodedKey @db, expectedKey
+      @db._delSync.should.have.been.calledWith expectedKey
   describe ".del", ->
     it "should encode key sync", ->
       @db.open({keyEncoding:'json', valueEncoding: 'json'})
       expectedKey = myKeyName: Math.random()
+      @db._delSync.reset()
       @db.del expectedKey
-      @db._delSync.should.have.been.calledWith JSON.stringify expectedKey
+      expectedKey = getEncodedKey @db, expectedKey
+      @db._delSync.should.have.been.calledWith expectedKey
     it "should encode key async", (done)->
       @db.open({keyEncoding:'json', valueEncoding: 'json'})
       expectedKey = myKeyName: Math.random()
+      @db._delSync.reset()
       @db.del expectedKey, (err, result)=>
         should.not.exist err
-        @db._delSync.should.have.been.calledWith JSON.stringify expectedKey
+        expectedKey = getEncodedKey @db, expectedKey
+        @db._delSync.should.have.been.calledWith expectedKey
         done()
 
-
+  operations = [
+    type: "put"
+    key: [Math.random()]
+    value: v:Math.random()
+  ,
+    type: "del"
+    key: [Math.random()]
+  ]
+  getEncodedOps = (db, ops) ->
+      ops.slice().map (i) ->
+        i.key = getEncodedKey db, i.key
+        i.value = JSON.stringify i.value if i.value
+        i
   describe ".batchSync", ->
+    beforeEach -> @db.open({keyEncoding:'json', valueEncoding: 'json', path: 'root'})
+    afterEach  -> @db.close()
     it "should raise error on invalid arugments", ->
-      @db.open({keyEncoding:'json', valueEncoding: 'json'})
       should.throw @db.batchSync.bind(@db), InvalidArgumentError
     it "should encode key", ->
-      @db.open({keyEncoding:'json', valueEncoding: 'json'})
-      ops = [
-          type: "put"
-          key: [Math.random()]
-          value: v:Math.random()
-        ,
-          type: "del"
-          key: [Math.random()]
-      ]
-      expectedOps = ops.slice()
-      expectedOps.map (i)->
-        i.key = JSON.stringify i.key
-        i.value = JSON.stringify i.value if i.value
-      @db.batchSync ops
+      expectedOps = getEncodedOps @db, operations
+      @db.batchSync operations
       @db._batchSync.should.have.been.calledWith expectedOps
   describe ".batch", ->
+    beforeEach -> @db.open({keyEncoding:'json', valueEncoding: 'json', path: 'root'})
+    afterEach  -> @db.close()
     it "should get error on invalid arugments", ->
-      @db.open({keyEncoding:'json', valueEncoding: 'json'})
       @db.batch undefined, (err)->
         should.exist err
         err.invalidArgument().should.be.true
     it "should encode key sync", ->
-      @db.open({keyEncoding:'json', valueEncoding: 'json'})
-      ops = [
-          type: "put"
-          key: [Math.random()]
-          value: v:Math.random()
-        ,
-          type: "del"
-          key: [Math.random()]
-      ]
-      expectedOps = ops.slice()
-      expectedOps.map (i)->
-        i.key = JSON.stringify i.key
-        i.value = JSON.stringify i.value if i.value
-      @db.batch ops
+      expectedOps = getEncodedOps @db, operations
+      @db.batch operations
       @db._batchSync.should.have.been.calledWith expectedOps
     it "should encode key async", (done)->
       @db.open({keyEncoding:'json', valueEncoding: 'json'})
-      ops = [
-          type: "put"
-          key: [Math.random()]
-          value: v:Math.random()
-        ,
-          type: "del"
-          key: [Math.random()]
-      ]
-      expectedOps = ops.slice()
-      expectedOps.map (i)->
-        i.key = JSON.stringify i.key
-        i.value = JSON.stringify i.value if i.value
-      @db.batch ops, (err, result)=>
+      expectedOps = getEncodedOps @db, operations
+      @db.batch operations, (err, result)=>
         should.not.exist err
         @db._batchSync.should.have.been.calledWith expectedOps
         done()
 
+###
   describe ".iterator", ->
     it "should encode range", ->
       @db.open({keyEncoding:'json', valueEncoding: 'json'})

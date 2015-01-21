@@ -15,6 +15,7 @@ isInheritedFrom       = require("abstract-object/lib/util/isInheritedFrom")
 isFunction            = require("abstract-object/lib/util/isFunction")
 isString              = require("abstract-object/lib/util/isString")
 isObject              = require("abstract-object/lib/util/isObject")
+isArray               = require("abstract-object/lib/util/isArray")
 extend                = require("abstract-object/lib/util/_extend")
 hooks                 = require("./hooks")
 path                  = require("./path")
@@ -248,7 +249,7 @@ module.exports = class SubkeyNoSQL
   delSync: (key, options) ->
     path = @getPathArray(options)
     options = extend {}, @_options, options
-    key = @encodeKey key, path, options, DEL_OP
+    key = @encodeKey path, key, options, DEL_OP
     return false if key is false
     result = AbstractNoSQL::delSync.call(@, key, options)
     if result
@@ -264,7 +265,7 @@ module.exports = class SubkeyNoSQL
       callback = options
       options = undefined
     options = extend {}, @_options, options
-    key = @encodeKey key, path, options, DEL_OP
+    key = @encodeKey path, key, options, DEL_OP
     return false if key is false
     AbstractNoSQL::delAsync.call @, key, options, (err, result)=>
       return @dispatchError err, callback if err
@@ -274,7 +275,7 @@ module.exports = class SubkeyNoSQL
       delete options._keyPath
       @postHooks.trigger DEL_OP, vKeyPath, [DEL_OP, options]
       callback(null, result) if callback
-  prepareOperations: (operations)->
+  prepareOperations: (operations, options)->
     keyEncoding = @keyEncoding options
     valueEncoding = @valueEncoding options
 
@@ -284,7 +285,6 @@ module.exports = class SubkeyNoSQL
       op = operations[i]
       op.path = @getPathArray(op)
       result = prepareOperation(@preHooks, TRANS_OP, op)
-      op._keyPath = [op.path, vKey] # keep the original key for postHook.
       if result is HALT_OP
         delete operations[i]
       else if result isnt SKIP_OP
@@ -294,7 +294,7 @@ module.exports = class SubkeyNoSQL
     operations
   batchSync: (operations, options) ->
     if isArray operations
-      @prepareOperations operations
+      @prepareOperations operations, options
       result = super(operations, options)
       if result
         operations.forEach (op) =>
@@ -305,6 +305,8 @@ module.exports = class SubkeyNoSQL
           vOpType = if op.type is 'del' then DEL_OP else PUT_OP
           @postHooks.trigger(vOpType, vKeyPath, [vOpType, op]) if op.triggerAfter != false
       result
+    else
+      super(operations, options)
   batchAsync: (operations, options, callback) ->
     if isFunction options
       callback = options
