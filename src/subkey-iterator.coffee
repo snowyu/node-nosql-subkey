@@ -1,15 +1,19 @@
 # Copyright (c) 2015 Riceball LEE, MIT License
+ltgt                  = require('ltgt')
 EncodingIterator      = require("encoding-iterator")
 inherits              = require("abstract-object/lib/util/inherits")
 isArray               = require("abstract-object/lib/util/isArray")
 extend                = require("abstract-object/lib/util/_extend")
-
+Codec                 = require('buffer-codec')
 codec                 = require("./codec")
+consts                = require("./consts")
 
 lowerBound            = codec.lowerBound
 upperBound            = codec.upperBound
 encodeKey             = codec.encodeKey
 decodeKey             = codec.decodeKey
+toLtgt                = ltgt.toLtgt
+GET_OP                = consts.GET_OP
 
 module.exports = class SubkeyIterator
   inherits SubkeyIterator, EncodingIterator
@@ -22,8 +26,9 @@ module.exports = class SubkeyIterator
     #the key is lowerBound or upperBound.
     #if opts.start is exists then lowBound key is opt.start
     encodeKeyPath = (key) ->
+      encoding = if key is lowerBound or key is upperBound then null else keyEncoding
       vOptions.path = options.path
-      encodeKey(vPath, key, null, vOptions)
+      encodeKey(vPath, key, encoding, vOptions)
 
     #convert the lower/upper bounds to real lower/upper bounds.
     #codec.lowerBound, codec.upperBound are default bounds in case of the options have no bounds.

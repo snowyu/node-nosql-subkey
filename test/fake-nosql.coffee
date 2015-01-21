@@ -16,12 +16,14 @@ module.exports = class FakeDB
     true
   _isExistsSync: sinon.spy (key)->
     @data.hasOwnProperty key
+  _mGetSync: sinon.spy ->
+    EncodingNoSQL::_mGetSync.apply this, arguments
   _getBufferSync: sinon.spy ->
     EncodingNoSQL::_getBufferSync.apply this, arguments
   _getSync: sinon.spy (key, opts)->
-    #@data[key]
-    encoding = @valueEncoding opts
-    if encoding then encoding.encode(key) else '"'+key+'"'
+    #encoding = @valueEncoding opts
+    #if encoding then encoding.encode(key) else '"'+key+'"'
+    @data[key]
   _putSync: sinon.spy (key,value)->@data[key]=value
   _delSync: sinon.spy (key)->delete @data[key]
   _batchSync: sinon.spy (operations, options)->

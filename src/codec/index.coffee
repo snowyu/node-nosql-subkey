@@ -55,13 +55,13 @@ module.exports = class SubkeyCodec
   @unescapeString = unescapeString = decodeURIComponent
 
 
-  @getPathArray: getPathArray = (aPath, aParentPath) ->
+  @getPathArray: getPathArray = (aPath, aRootPath) ->
     return aPath unless aPath?
     #is a subkey object?
     return aPath.pathAsArray() if isFunction(aPath.pathAsArray)
     if isString(aPath)
-      if aParentPath
-        aPath = resolvePathArray(aParentPath, aPath)
+      if aRootPath
+        aPath = resolvePathArray(aRootPath, aPath)
         aPath.shift(0,1)
       else aPath = toPathArray(aPath)
     #is a path array:
@@ -84,11 +84,6 @@ module.exports = class SubkeyCodec
   @prepareOperation: prepareOperation = (preHooks, operationType, aOperation, aPathArray, aKey)->
     if aOperation.path
       addEncodings(aOperation, aOperation.path) #if aOperation.path is a subkey object.
-      #aOperation.path = getPathArray(aOperation.path)
-    #if aPathArray
-    #  aPathArray = resolvePathArray aOperation.path, aPathArray if aOperation.path
-    #else
-    #  aPathArray = aOperation.path
     aPathArray = aOperation.path unless aPathArray
     aKey = aOperation.key unless aKey
     prepareKeyPath(aPathArray, aKey, aOperation)

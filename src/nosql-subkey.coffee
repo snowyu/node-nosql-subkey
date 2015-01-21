@@ -1,7 +1,6 @@
 # Copyright (c) 2015 Riceball LEE, MIT License
 #xtend                 = require("xtend")
 #util                  = require("abstract-object/lib/util")
-ltgt                  = require('ltgt')
 Errors                = require("abstract-object/Error")
 EncodingNoSQL         = require("nosql-encoding")
 AbstractNoSQL         = EncodingNoSQL.super_
@@ -45,7 +44,6 @@ WriteError            = Errors.WriteError
 toPath                = path.join
 relativePath          = path.relative
 resolvePathArray      = path.resolveArray
-toLtgt                = ltgt.toLtgt
 
 
 module.exports = class SubkeyNoSQL
@@ -115,9 +113,10 @@ module.exports = class SubkeyNoSQL
       @postHooks = null
       @cache = null
     super(isOpened, options)
-  getPathArray: (options) ->
-    vParentPath = if @_options and @_options.path then @_options.path else []
-    result = if options and options.path then getPathArray(options.path, vParentPath) else vParentPath
+  getPathArray: (options, aParentPath) ->
+    vRootPath = if @_options and @_options.path then @_options.path else []
+    vRootPath = getPathArray(aParentPath, vRootPath) if aParentPath
+    result = if options and options.path then getPathArray(options.path, vRootPath) else vRootPath
     result
   isExistsSync: (key, options) ->
     path = @getPathArray(options)
@@ -278,35 +277,39 @@ module.exports = class SubkeyNoSQL
   prepareOperations: (operations, options)->
     keyEncoding = @keyEncoding options
     valueEncoding = @valueEncoding options
-
     i = 0
+    vParentPath = options.path if options
     #apply prehooks here.
     while i < operations.length
       op = operations[i]
-      op.path = @getPathArray(op)
+      op.type = 'put' unless op.type
+      op.path = @getPathArray(op, vParentPath)
       result = prepareOperation(@preHooks, TRANS_OP, op)
       if result is HALT_OP
         delete operations[i]
-      else if result isnt SKIP_OP
-        op.key = _encodeKey op.path, op.key, keyEncoding, operations
-      op.value = valueEncoding.encode(op.value) if valueEncoding
+      else if result isnt SKIP_OP # skip encodeKey
+        op.key = _encodeKey op.path, op.key, Codec(op.keyEncoding) || keyEncoding, operations
+      vEncoding = Codec(op.valueEncoding) || valueEncoding
+      op._keyPath[2] = op.value
+      op.value = vEncoding.encode(op.value) if vEncoding
       i++
     operations
   batchSync: (operations, options) ->
     if isArray operations
       @prepareOperations operations, options
-      result = super(operations, options)
+      result = AbstractNoSQL::batchSync.call(@, operations, options)
       if result
         operations.forEach (op) =>
           vKeyPath = op._keyPath
           op.path = vKeyPath[0]
           op.key = vKeyPath[1]
+          op.value = vKeyPath[2]
           delete op._keyPath
           vOpType = if op.type is 'del' then DEL_OP else PUT_OP
           @postHooks.trigger(vOpType, vKeyPath, [vOpType, op]) if op.triggerAfter != false
       result
     else
-      super(operations, options)
+      AbstractNoSQL::batchSync.call(@, operations, options)
   batchAsync: (operations, options, callback) ->
     if isFunction options
       callback = options
@@ -314,7 +317,7 @@ module.exports = class SubkeyNoSQL
     if isArray operations
       @prepareOperations operations
       that = @
-      super operations, options, (err, result)->
+      AbstractNoSQL::batchAsync.call @, operations, options, (err, result)->
         return that.dispatchError err, callback if err
         operations.forEach (op) ->
           vKeyPath = op._keyPath
@@ -324,6 +327,8 @@ module.exports = class SubkeyNoSQL
           vOpType = if op.type is 'del' then DEL_OP else PUT_OP
           that.postHooks.trigger(vOpType, vKeyPath, [vOpType, op]) if op.triggerAfter != false
         callback err, result if callback
+    else
+      AbstractNoSQL::batchAsync.call @, operations, options, callback
     return
   #TODO: approximateSizeSync should not be here.
   approximateSizeSync:(start, end, options) ->
@@ -346,7 +351,9 @@ module.exports = class SubkeyNoSQL
     end = encodeKey(path, end, keyEncoding, options) if end isnt undefined
     AbstractNoSQL::approximateSizeAsync.call(@, start, end, callback)
   iterator: (options) ->
+    path = @getPathArray(options)
     options = extend {}, @_options, options
+    options.path = path
     super(options)
   _addHookTo: (hooks, opType, range, path, callback)->
     if @_options.path

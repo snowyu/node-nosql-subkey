@@ -9,10 +9,10 @@ module.exports =  class FakeIterator
     super
     @keys = Object.keys @db.data
   _nextSync: sinon.spy ->
-    result  = i < @keys.length
+    result  = @i < @keys.length
     if result
-      key   = @keys[i]
+      key   = @keys[@i]
       result= [key, @db.data[key]]
-      ++i
+      ++@i
     result
 
