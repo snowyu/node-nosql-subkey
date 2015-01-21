@@ -160,34 +160,39 @@ describe "SubkeyNoSQL", ->
           should.not.exist err
           @db._getBufferSync.should.have.been.calledWith expectedKey
           done()
-###
+
   describe ".mGetSync", ->
+    afterEach -> @db.close()
     it "should encode key, decode value", ->
-      @db.open({keyEncoding:'json', valueEncoding: 'json'})
+      @db.open({keyEncoding:'json', valueEncoding: 'json', path: 'root'})
       i = 0
       expectedKey = while i++ < 10
         myKeyName: Math.random()
       result = @db.mGetSync expectedKey
+      expectedValue = expectedKey.map getEncodedKey.bind @, @db
       for o, i in result
         o.key.should.be.deep.equal expectedKey[i]
-        o.value.should.be.deep.equal expectedKey[i]
+        o.value.should.be.deep.equal expectedValue[i]
     it "should encode key only", ->
       @db.open({keyEncoding:'json'})
       i = 0
       expectedKey = while i++ < 10
         myKeyName: Math.random()
       result = @db.mGetSync expectedKey
+      expectedValue = expectedKey.map getEncodedKey.bind @, @db
       for o, i in result
         o.key.should.be.deep.equal expectedKey[i]
-        o.value.should.be.deep.equal JSON.stringify expectedKey[i]
+        o.value.should.be.deep.equal '"'+expectedValue[i]+'"'
     it "should decode value array", ->
       @db.open({keyEncoding:'json', valueEncoding: 'json'})
       i = 0
       expectedKey = while i++ < 10
         myKeyName: Math.random()
       result = @db.mGetSync expectedKey, keys: false
+      expectedValue = expectedKey.map getEncodedKey.bind @, @db
       for o, i in result
-        o.should.be.deep.equal expectedKey[i]
+        o.should.be.deep.equal expectedValue[i]
+
   describe ".mGet", ->
     it "should encode key sync", ->
       @db.open({keyEncoding:'json', valueEncoding: 'json'})
@@ -195,59 +200,66 @@ describe "SubkeyNoSQL", ->
       expectedKey = while i++ < 10
         myKeyName: Math.random()
       result = @db.mGet expectedKey
+      expectedValue = expectedKey.map getEncodedKey.bind @, @db
       for o, i in result
         o.key.should.be.deep.equal expectedKey[i]
-        o.value.should.be.deep.equal expectedKey[i]
+        o.value.should.be.deep.equal expectedValue[i]
     it "should encode key only sync", ->
       @db.open({keyEncoding:'json'})
       i = 0
       expectedKey = while i++ < 10
         myKeyName: Math.random()
       result = @db.mGet expectedKey
+      expectedValue = expectedKey.map getEncodedKey.bind @, @db
       for o, i in result
         o.key.should.be.deep.equal expectedKey[i]
-        o.value.should.be.deep.equal JSON.stringify expectedKey[i]
+        o.value.should.be.deep.equal '"'+expectedValue[i]+'"'
     it "should decode value array sync", ->
       @db.open({keyEncoding:'json', valueEncoding: 'json'})
       i = 0
       expectedKey = while i++ < 10
         myKeyName: Math.random()
       result = @db.mGet expectedKey, keys: false
+      expectedValue = expectedKey.map getEncodedKey.bind @, @db
       for o, i in result
-        o.should.be.deep.equal expectedKey[i]
+        o.should.be.deep.equal expectedValue[i]
     it "should encode key, decode value async", (done)->
       @db.open({keyEncoding:'json', valueEncoding: 'json'})
       i = 0
       expectedKey = while i++ < 10
         myKeyName: Math.random()
+      expectedValue = expectedKey.map getEncodedKey.bind @, @db
       @db.mGet expectedKey, (err, result)=>
         should.not.exist err
         for o, i in result
           o.key.should.be.deep.equal expectedKey[i]
-          o.value.should.be.deep.equal expectedKey[i]
+          o.value.should.be.deep.equal expectedValue[i]
         done()
     it "should encode key only async", (done)->
       @db.open keyEncoding:'json'
       i = 0
       expectedKey = while i++ < 10
         myKeyName: Math.random()
+      expectedValue = expectedKey.map getEncodedKey.bind @, @db
       @db.mGet expectedKey, (err, result)=>
         should.not.exist err
         for o, i in result
           o.key.should.be.deep.equal expectedKey[i]
-          o.value.should.be.deep.equal JSON.stringify expectedKey[i]
+          o.value.should.be.deep.equal '"'+expectedValue[i]+'"'
         done()
     it "should decode value array async", (done)->
       @db.open({keyEncoding:'json', valueEncoding: 'json'})
       i = 0
       expectedKey = while i++ < 10
         myKeyName: Math.random()
+      expectedValue = expectedKey.map getEncodedKey.bind @, @db
       @db.mGet expectedKey, keys:false, (err, result)=>
         should.not.exist err
         for o, i in result
-          o.should.be.deep.equal expectedKey[i]
+          o.should.be.deep.equal expectedValue[i]
         done()
 
+###
   describe ".getSync", ->
     it "should encode key", ->
       @db.open({keyEncoding:'json', valueEncoding: 'json'})
