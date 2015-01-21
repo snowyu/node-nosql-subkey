@@ -25,10 +25,12 @@ toPath                = path.join
 
 chai.use(sinonChai)
 
+FakeDB = SubkeyNoSQL(FakeDB)
+
 describe "Add Subkey to a NoSQL Class", ->
   it "should add subkey feature to a NoSQL Database", ->
-    isInheritedFrom(FakeDB, SubkeyNoSQL).should.not.be.true
-    SubkeyNoSQL(FakeDB)
+    #isInheritedFrom(FakeDB, SubkeyNoSQL).should.not.be.true
+    #SubkeyNoSQL(FakeDB)
     isInheritedFrom(FakeDB, SubkeyNoSQL).should.be.equal FakeDB
   it "should raise error when adding a illegal NoSQL class", ->
     class IllegalDB
@@ -303,29 +305,35 @@ describe "SubkeyNoSQL", ->
         result.should.be.deep.equal expectedKey
         done()
 
-###
   describe ".putSync", ->
     it "should encode key,value", ->
       @db.open({keyEncoding:'json', valueEncoding: 'json'})
       expectedKey   = myKeyName: Math.random()
       expectedValue = myValueName: Math.random()
       @db.putSync expectedKey, expectedValue
-      @db._putSync.should.have.been.calledWith JSON.stringify(expectedKey), JSON.stringify(expectedValue)
+      expectedKey = getEncodedKey @db, expectedKey
+      expectedValue = JSON.stringify expectedValue
+      @db._putSync.should.have.been.calledWith expectedKey, expectedValue
   describe ".put", ->
     it "should encode key,value sync", ->
       @db.open({keyEncoding:'json', valueEncoding: 'json'})
       expectedKey = myKeyName: Math.random()
       expectedValue = myValueName: Math.random()
       @db.putSync expectedKey, expectedValue
-      @db._putSync.should.have.been.calledWith JSON.stringify(expectedKey), JSON.stringify(expectedValue)
+      expectedValue = JSON.stringify expectedValue
+      expectedKey = getEncodedKey @db, expectedKey
+      @db._putSync.should.have.been.calledWith expectedKey, expectedValue
     it "should encode key,value async", (done)->
       @db.open({keyEncoding:'json', valueEncoding: 'json'})
       expectedKey = myKeyName: Math.random()
       expectedValue = myValueName: Math.random()
       @db.put expectedKey, expectedValue, (err, result)=>
         should.not.exist err
-        @db._putSync.should.have.been.calledWith JSON.stringify(expectedKey), JSON.stringify(expectedValue)
+        expectedKey = getEncodedKey @db, expectedKey
+        expectedValue = JSON.stringify expectedValue
+        @db._putSync.should.have.been.calledWith expectedKey, expectedValue
         done()
+###
 
   describe ".delSync", ->
     it "should encode key", ->

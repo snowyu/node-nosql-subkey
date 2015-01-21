@@ -76,7 +76,7 @@ module.exports = class SubkeyCodec
       if op.separator && op.separator != PATH_SEP
         aKey = op.separator + aKey if aKey[0] != op.separator
         op.separator = undefined if aKey[0] is op.separator
-      op._keyPath = [aPathArray, aKey]
+    op._keyPath = [aPathArray, aKey]
     op.path = aPathArray
     op.key = aKey
     return
