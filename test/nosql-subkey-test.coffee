@@ -259,45 +259,51 @@ describe "SubkeyNoSQL", ->
           o.should.be.deep.equal expectedValue[i]
         done()
 
-###
   describe ".getSync", ->
     it "should encode key", ->
       @db.open({keyEncoding:'json', valueEncoding: 'json'})
       expectedKey = myKeyName: Math.random()
       @db.getSync expectedKey
-      @db._getSync.should.have.been.calledWith JSON.stringify expectedKey
+      expectedKey = getEncodedKey @db, expectedKey
+      @db._getSync.should.have.been.calledWith expectedKey
     it "should decode value", ->
       @db.open({keyEncoding:'json', valueEncoding: 'json'})
       expectedKey = myKeyName: Math.random()
       result = @db.getSync expectedKey
+      expectedKey = getEncodedKey @db, expectedKey
       result.should.be.deep.equal expectedKey
   describe ".get", ->
     it "should encode key sync", ->
       @db.open({keyEncoding:'json', valueEncoding: 'json'})
       expectedKey = myKeyName: Math.random()
       @db.get expectedKey
-      @db._getSync.should.have.been.calledWith JSON.stringify expectedKey
+      expectedKey = getEncodedKey @db, expectedKey
+      @db._getSync.should.have.been.calledWith expectedKey
     it "should decode value sync", ->
       @db.open({keyEncoding:'json', valueEncoding: 'json'})
       expectedKey = myKeyName: Math.random()
       result = @db.get expectedKey
+      expectedKey = getEncodedKey @db, expectedKey
       result.should.be.deep.equal expectedKey
     it "should encode key async", (done)->
       @db.open({keyEncoding:'json', valueEncoding: 'json'})
       expectedKey = myKeyName: Math.random()
       @db.get expectedKey, (err, result)=>
         should.not.exist err
-        @db._getSync.should.have.been.calledWith JSON.stringify expectedKey
+        expectedKey = getEncodedKey @db, expectedKey
+        @db._getSync.should.have.been.calledWith expectedKey
         done()
     it "should decode value async", (done)->
       @db.open({keyEncoding:'json', valueEncoding: 'json'})
       expectedKey = myKeyName: Math.random()
       @db.get expectedKey, (err, result)=>
         should.not.exist err
-        @db._getSync.should.have.been.calledWith JSON.stringify expectedKey
+        expectedKey = getEncodedKey @db, expectedKey
+        @db._getSync.should.have.been.calledWith expectedKey
         result.should.be.deep.equal expectedKey
         done()
 
+###
   describe ".putSync", ->
     it "should encode key,value", ->
       @db.open({keyEncoding:'json', valueEncoding: 'json'})
