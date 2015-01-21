@@ -1,6 +1,7 @@
 Codec             = require('buffer-codec')
 SEP               = require('./separator')
 path              = require('../path')
+consts            = require('../consts')
 
 isString          = require("abstract-object/lib/util/isString")
 isFunction        = require("abstract-object/lib/util/isFunction")
@@ -18,6 +19,12 @@ SUBKEY_SEP = SUBKEY_SEPS[1][0]
 
 module.exports = class SubkeyCodec
   #register SubkeyCodec
+  GET_OP  = consts.GET_OP
+  PUT_OP  = consts.PUT_OP
+  DEL_OP  = consts.DEL_OP
+  TRANS_OP= consts.TRANS_OP
+  HALT_OP = consts.HALT_OP
+  SKIP_OP = consts.SKIP_OP
 
   @__defineGetter__ "PATH_SEP", ->
     PATH_SEP

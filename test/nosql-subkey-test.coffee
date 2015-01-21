@@ -20,6 +20,7 @@ setImmediate          = setImmediate || process.nextTick
 InvalidArgumentError  = Errors.InvalidArgumentError
 PATH_SEP              = codec.PATH_SEP
 SUBKEY_SEP            = codec.SUBKEY_SEP
+_encodeKey            = codec._encodeKey
 toPath                = path.join
 
 chai.use(sinonChai)
@@ -45,6 +46,8 @@ describe "SubkeyNoSQL", ->
     should.exist db.postHooks
     should.exist db.cache
   describe ".open", ->
+    afterEach ->
+      @db.close()
     it "should set string encoding", ->
       @db.open({keyEncoding:'json', valueEncoding: 'text'})
       @db._options.keyEncoding.should.be.equal Codec('json')
@@ -65,6 +68,18 @@ describe "SubkeyNoSQL", ->
       @db.open({path:'/test'})
       @db._options.path.should.be.deep.equal ['test']
       testOpen @db
+  describe ".getPathArray", ->
+    afterEach ->
+      @db.close()
+    it "should get self path", ->
+      @db.open({path:'test'})
+      @db.getPathArray().should.be.deep.equal ['test']
+    it "should get root path via defaults", ->
+      @db.open({})
+      @db.getPathArray().should.be.deep.equal []
+    it "should get path", ->
+      @db.open path: 'test'
+      @db.getPathArray(path:'a').should.be.deep.equal ['test', 'a']
 
   describe ".isExistsSync", ->
     it "should encode key", ->
@@ -115,53 +130,37 @@ describe "SubkeyNoSQL", ->
         @db._isExistsSync.should.have.been.calledOnce
         done()
 
+  getEncodedKey = (db, key, options) ->
+    _encodeKey db.getPathArray(options), key, db.keyEncoding(options), options
+  describe ".getBuffer", ->
+    describe ".getBufferSync", ->
+      it "should encode key", ->
+        @db.open({keyEncoding:'json', path: 'root'})
+        expectedKey = myKeyName: Math.random()
+        @db._getBufferSync.reset()
+        @db.getBufferSync expectedKey
+        expectedKey = getEncodedKey @db, expectedKey
+        @db._getBufferSync.should.have.been.calledWith expectedKey
+        @db._getSync.should.have.been.calledWith expectedKey
+    describe ".getBuffer", ->
+      it "should encode key sync", ->
+        @db.open({keyEncoding:'json'})
+        expectedKey = myKeyName: Math.random()
+        @db._getBufferSync.reset()
+        @db.getBuffer expectedKey
+        expectedKey = getEncodedKey @db, expectedKey
+        @db._getBufferSync.should.have.been.calledWith expectedKey
+      it "should encode key async", (done)->
+        @db.open({keyEncoding:'json', path: 'root'})
+        expectedKey = myKeyName: Math.random()
+        @db._getBufferSync.reset()
+        opts = path: 'other'
+        @db.getBuffer expectedKey, null, opts, (err, result)=>
+          expectedKey = getEncodedKey @db, expectedKey, opts
+          should.not.exist err
+          @db._getBufferSync.should.have.been.calledWith expectedKey
+          done()
 ###
-  describe ".getBuffer directly", ->
-    describe ".getBufferSync", ->
-      it "should encode key", ->
-        @db.open({keyEncoding:'json'})
-        expectedKey = myKeyName: Math.random()
-        @db.getBufferSync expectedKey
-        @db._getBufferSync.should.have.been.calledWith JSON.stringify expectedKey
-    describe ".getBuffer", ->
-      it "should encode key sync", ->
-        @db.open({keyEncoding:'json'})
-        expectedKey = myKeyName: Math.random()
-        @db.getBuffer expectedKey
-        @db._getBufferSync.should.have.been.calledWith JSON.stringify expectedKey
-      it "should encode key async", (done)->
-        @db.open({keyEncoding:'json'})
-        expectedKey = myKeyName: Math.random()
-        @db.getBuffer expectedKey, null, (err, result)=>
-          should.not.exist err
-          @db._getBufferSync.should.have.been.calledWith JSON.stringify expectedKey
-          done()
-  describe ".getBuffer with _get", ->
-    old_getBufferSync = FakeDB::_getBufferSync
-    beforeEach: ->
-    after: ->
-      FakeDB::_getBufferSync = old_getBufferSync
-    describe ".getBufferSync", ->
-      it "should encode key", ->
-        delete FakeDB::_getBufferSync
-        @db.open({keyEncoding:'json'})
-        expectedKey = myKeyName: Math.random()
-        @db.getBufferSync expectedKey
-        @db._getSync.should.have.been.calledWith JSON.stringify expectedKey
-    describe ".getBuffer", ->
-      it "should encode key sync", ->
-        @db.open({keyEncoding:'json'})
-        expectedKey = myKeyName: Math.random()
-        @db.getBuffer expectedKey
-        @db._getSync.should.have.been.calledWith JSON.stringify expectedKey
-      it "should encode key async", (done)->
-        @db.open({keyEncoding:'json'})
-        expectedKey = myKeyName: Math.random()
-        @db.getBuffer expectedKey, null, (err, result)=>
-          should.not.exist err
-          @db._getSync.should.have.been.calledWith JSON.stringify expectedKey
-          done()
-
   describe ".mGetSync", ->
     it "should encode key, decode value", ->
       @db.open({keyEncoding:'json', valueEncoding: 'json'})
