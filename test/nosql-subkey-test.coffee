@@ -97,7 +97,7 @@ describe "SubkeyNoSQL", ->
       testOpen @db
     it "should set options.path", ->
       @db.open({path:'/test'})
-      @db._options.path.should.be.deep.equal ['test']
+      @db._pathArray.should.be.deep.equal ['test']
       testOpen @db
   describe ".getPathArray", ->
     afterEach ->
@@ -486,7 +486,12 @@ describe "SubkeyNoSQL", ->
           if ++i < 10
             nextOne()
           else 
+            overCallbackCount = 0
             iterator.next (err, key, value)->
+              overCallbackCount++
+              overCallbackCount.should.be.equal 1
+              should.exist err
+              err.notFound().should.be.true
               should.not.exist key
               should.not.exist value
               done()
@@ -529,4 +534,5 @@ describe "SubkeyNoSQL", ->
             result.should.be.deep.equal expectedKeys
             done()
       nextOne()
-###
+  describe ".pre Hook", ->
+  describe ".post Hook", ->
