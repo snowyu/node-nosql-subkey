@@ -60,7 +60,9 @@ module.exports = class SubkeyNoSQL
   constructor: (aClass)->
     if (this not instanceof SubkeyNoSQL)
       if isInheritedFrom aClass, 'SubkeyNoSQL'
-        throw new InvalidArgumentError("this class has already been subkey-able.")
+        #throw new InvalidArgumentError("this class has already been subkey-able.")
+        console.error aClass.name + " class has already been subkey-able."
+        return aClass
       vParentClass = isInheritedFrom aClass, EncodingNoSQL if EncodingNoSQL
       vParentClass = isInheritedFrom aClass, 'AbstractNoSQL' unless vParentClass
       if vParentClass
@@ -75,9 +77,14 @@ module.exports = class SubkeyNoSQL
         return aClass
       else
         throw new InvalidArgumentError("class should be inherited from EncodingNoSQL or AbstractNoSQL")
-    @Subkey = subkey(@)
     AbstractNoSQL::constructor.apply(this, arguments)
+  init: ->
+    @cache = new SubkeyCache()
+    @Subkey = subkey(@)
+    super
   final: ->
+    @cache.free()
+    @cache = undefined
     @Subkey = undefined
     super
   ###
@@ -103,18 +110,22 @@ module.exports = class SubkeyNoSQL
     if isOpened
       @preHooks = hooks()
       @postHooks = hooks()
-      @cache = new SubkeyCache(options)
-      options.path = getPathArray options.path if options and options.path
+      @cache.reset(options)
+      if options and options.path
+        @_pathArray = getPathArray options.path
+        delete options.path
+      else
+        @_pathArray = []
     else
       @preHooks.free() if @preHooks
       @postHooks.free() if @postHooks
-      @cache.free() if @cache
+      @cache.clear()
       @preHooks = null
       @postHooks = null
-      @cache = null
+      @_pathArray = null
     super(isOpened, options)
   getPathArray: (options, aParentPath) ->
-    vRootPath = if @_options and @_options.path then @_options.path else []
+    vRootPath = @_pathArray
     vRootPath = getPathArray(aParentPath, vRootPath) if aParentPath
     result = if options and options.path then getPathArray(options.path, vRootPath) else vRootPath
     result
@@ -376,9 +387,22 @@ module.exports = class SubkeyNoSQL
   post: (opType, range, path, callback)->
     @_addHookTo @postHooks, opType, range, path, callback
 
-  subkey: (aKeyPath, aOptions, aReadyCallback)->
+  createSubkey: (aKeyPath, aOptions, aReadyCallback)->
+    if isFunction aOptions
+      aReadyCallback = aOptions
+      aOptions = undefined
+    aOptions = extend {}, @_options, aOptions
     @Subkey(aKeyPath, aOptions, aReadyCallback)
+  createPath: @::createSubkey
+  subkey: (aKeyPath, aOptions, aReadyCallback)->
+    if isFunction aOptions
+      aReadyCallback = aOptions
+      aOptions = undefined
+    aOptions = extend {}, @_options, aOptions
+    aOptions.addRef = false
+    @Subkey(aKeyPath, aOptions, aReadyCallback)
+  path: @::subkey
 
   root: (aOptions, aReadyCallback)->
-    @Subkey(null, aOptions, aReadyCallback)
+    @subkey(null, aOptions, aReadyCallback)
 
