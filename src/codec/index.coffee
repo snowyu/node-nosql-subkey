@@ -5,8 +5,8 @@ consts            = require('../consts')
 
 isString          = require("abstract-object/lib/util/isString")
 isFunction        = require("abstract-object/lib/util/isFunction")
-TextCodec         = Codec['text']
 register          = Codec.register
+_escapeString     = Codec.escapeString
 toPath            = path.join
 toPathArray       = path.toArray
 relativePath      = path.relative
@@ -51,7 +51,7 @@ module.exports = class SubkeyCodec
     
   @escapeString: escapeString = (aString, aUnSafeChars) ->
     aUnSafeChars = UNSAFE_CHARS unless aUnSafeChars?
-    Codec.escapeString aString, aUnSafeChars
+    _escapeString aString, aUnSafeChars
   @unescapeString = unescapeString = decodeURIComponent
 
 
@@ -109,14 +109,7 @@ module.exports = class SubkeyCodec
     prepareKeyPath(aPathArray, aKey, op)
     [op.path, op.key]
 
-  indexOfType = (s) ->
-    i = s.length-1
-    while i>0
-      c = s[i]
-      if (SUBKEY_SEPS[1].indexOf(c) >=0) then return i
-      --i
-    return -1
-  @encode =encode = (aPath, aKey, aSeperator, dontEscapeSeperator)->
+  @encode = encode = (aPath, aKey, aSeperator, dontEscapeSeperator)->
     keyIsStr = isString(aKey) and aKey.length > 0
     hasSep   = !!aSeperator
     aSeperator = SUBKEY_SEP unless aSeperator
@@ -150,6 +143,13 @@ module.exports = class SubkeyCodec
       aPath = PATH_SEP
     aPath + aSeperator + aKey
 
+  indexOfType = (s) ->
+    i = s.length-1
+    while i>0
+      c = s[i]
+      if (SUBKEY_SEPS[1].indexOf(c) >=0) then return i
+      --i
+    return -1
   #return [path, key, separator, realSeparator]
   #the realSeparator is optional, only (aSeparator && aSeparator !== seperator
   @decode = _decode =  (s, aSeparator) ->
@@ -228,6 +228,10 @@ module.exports = class SubkeyCodec
   #DontEscapeSep: means do not escape the separator.
   #NOTE: if the separator is PATH_SEP then it DO NOT BE CONVERT TO SUBKEY_SEP.
   @_encode = _encode = (e)->
+    sep = e[2] if e.length > 2
+    dontEscapeSep = e[3] if e.length > 3
+    encode e[0], e[1], sep, dontEscapeSep
+    ###
     vSeperator = SUBKEY_SEP
     #e[2]: seperator
     hasSep = e.length >= 3 && e[2]
@@ -264,4 +268,5 @@ module.exports = class SubkeyCodec
     else if vSeperator.length >=2 && vSeperator[0] == PATH_SEP
       vPath = ""
     vPath + vSeperator + key
+    ###
 
