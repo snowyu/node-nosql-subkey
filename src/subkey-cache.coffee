@@ -1,6 +1,7 @@
 SecondaryCache        = require("secondary-cache")
 minimatch             = require('minimatch')
 inherits              = require("abstract-object/lib/util/inherits")
+setImmediate          = setImmediate || process.nextTick
 
 module.exports = class SubkeyCache
   inherits SubkeyCache, SecondaryCache
@@ -12,13 +13,13 @@ module.exports = class SubkeyCache
     else
       result = @get keyPath
       if result
-        result.addRef() if !options || options.addRef != false
-        callback(null, result) if callback
+        setImmediate callback.bind(result, null, result) if callback
       else
         result = new Subkey(options, callback)
         @set keyPath, result, options
         result.on "destroyed", (item) =>
           @del keyPath
+      result.addRef() if !options || options.addRef != false
     result
   subkeys: (aKeyPattern)->
     result = {}
