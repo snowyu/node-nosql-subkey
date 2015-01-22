@@ -81,10 +81,12 @@ var MemDB = subkeyFeatureTo(require('memdown-sync'))
 var db = new MemDB()
 db.open()
 
-root = db.subkey()
+root = db.root()
 
-var stuff = root.subkey('stuff') 
-var animal = stuff.subkey('animal') //or animal = stuff.path('animal')
+//u should free these .createSubkey() items:
+var stuff = root.createSubkey('stuff') 
+var animal = stuff.createSubkey('animal')
+// .subkey() items will be freed when stuff free.
 var plant = stuff.subkey('plant')
 
 //put a key into animal!
