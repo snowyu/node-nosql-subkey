@@ -140,15 +140,24 @@ animal.get("cucumber", function(err, value){})
 
 ## API
 
-### DB.subkey()/path(keyPath)
+### DB/Subkey.subkey()/path()
 
-Create(or get from a global cache) a new Subkey instance,
-and load the value if this key is exists on the database
+Get a new Subkey instance. It will remove from cache if you free it.
+this instance will be freed if parent is freed.
 
-* Subkey.subkey(keyPath, options, readyCallback)
-  * = Subkey.path(keyPath, options, readyCallback)
-* Subkey.subkey(keyPath, readyCallback)
-  * = Subkey.path(keyPath, readyCallback)
+please use the createSubkey if u wanna keep the instance even parent is freed.
+
+__arguments__ see createSubkey below:
+
+
+### DB/Subkey.createSubkey()/createPath()
+
+Create a new Subkey instance. you should free it when no used.
+
+* Subkey.createSubkey(keyPath, options, readyCallback)
+  * = Subkey.createPath(keyPath, options, readyCallback)
+* Subkey.createSubkey(keyPath, readyCallback)
+  * = Subkey.createPath(keyPath, readyCallback)
 
 
 __arguments__
