@@ -4,20 +4,23 @@ isObject      = require("abstract-object/lib/util/isObject")
 isArray       = require("abstract-object/lib/util/isArray")
 inherits      = require("abstract-object/lib/util/inherits")
 RefObject     = require("abstract-object/RefObject")
-WriteStream   = require("nosql-stream/lib/write-stream")
-ReadStream    = require('nosql-stream/lib/read-stream')
-streamConsts  = require('nosql-stream/lib/consts')
+try
+  WriteStream = require("nosql-stream/lib/write-stream")
+  ReadStream  = require('nosql-stream/lib/read-stream')
 codec         = require("./codec")
 path          = require("./path")
 errors        = require("./errors")
 
-ReadError     = errors.ReadError
-NotFoundError = errors.NotFoundError
-NotImplementedError= errors.NotImplementedError
-NotOpenedError= errors.NotOpenedError
-LoadingError  = errors.LoadingError
-
-setImmediate  = global.setImmediate or process.nextTick
+normalizePath       = path.normalize
+normalizePathArray  = path.normalizeArray
+toPath              = path.join
+ReadError           = errors.ReadError
+NotFoundError       = errors.NotFoundError
+InvalidArgumentError= errors.InvalidArgumentError
+NotImplementedError = errors.NotImplementedError
+NotOpenedError      = errors.NotOpenedError
+LoadingError        = errors.LoadingError
+setImmediate        = global.setImmediate or process.nextTick
 
 deprecate = require("depd")("level-subkey")
 deprecate.assignProperty = (object, deprecatedProp, currentProp) ->
@@ -30,9 +33,6 @@ assignDeprecatedPrefixOption = (options) ->
   deprecate.assignProperty options, "prefix", "path"
 
 
-FILTER_INCLUDED = streamConsts.FILTER_INCLUDED
-FILTER_EXCLUDED = streamConsts.FILTER_EXCLUDED
-FILTER_STOPPED  = streamConsts.FILTER_STOPPED
 PATH_SEP        = codec.PATH_SEP
 SUBKEY_SEP      = codec.SUBKEY_SEP
 getPathArray    = codec.getPathArray
@@ -56,12 +56,12 @@ LOADING_STATES =
 
 module.exports = (aDbCore, aCreateReadStream = ReadStream, aCreateWriteStream = WriteStream) ->
 
-
+  cache = aDbCore.cache
   class Subkey
     inherits(Subkey, RefObject)
     @::__defineGetter__ "sublevels", ->
-      deprecate "sublevels, all subkeys(sublevels) have cached on aDbCore now."
-      r = aDbCore.cache.subkeys(toPath(@_pathArray, "*"))
+      deprecate "sublevels, all subkeys(sublevels) have cached on aDbCore.cache now."
+      r = cache.subkeys(toPath(@_pathArray, "*"))
       result = {}
       for k of r
         result[path.basename(k)] = r[k]
@@ -74,9 +74,6 @@ module.exports = (aDbCore, aCreateReadStream = ReadStream, aCreateWriteStream = 
     @::__defineGetter__ "loadingState", ->
       vState = @_loadingState_
       if not vState? then "unload" else ["loading", "loaded", "dirtied", "modifying", "modified", "deleted"][vState]
-    FILTER_INCLUDED: FILTER_INCLUDED
-    FILTER_EXCLUDED: FILTER_EXCLUDED
-    FILTER_STOPPED: FILTER_STOPPED
     LOADING_STATES: LOADING_STATES
     Class: Subkey
     db: aDbCore
@@ -98,7 +95,7 @@ module.exports = (aDbCore, aCreateReadStream = ReadStream, aCreateWriteStream = 
           err = e
         aCallback(err, result) if aCallback
       else
-        setImmediate aCallback
+        setImmediate aCallback.bind(@, null, @)
     loadAsync: (aReadyCallback)->
       if @isUnload() and aDbCore.isOpen() is true
         @setLoadingState "loading"
@@ -114,13 +111,13 @@ module.exports = (aDbCore, aCreateReadStream = ReadStream, aCreateWriteStream = 
         err = if aDbCore.isOpen() then new LoadingError('this is already loaded or loading...') else new NotOpenedError()
         @dispatchError err, callback
     loadSync: -> if @_loadSync then @_loadSync() else true
-    load: (aReadyCallback)-> if aReadyCallback then loadAsync(aReadyCallback) else loadSync()
+    load: (aReadyCallback)-> if aReadyCallback then @loadAsync(aReadyCallback) else @loadSync()
     init: (aKeyPath, aOptions, aReadyCallback)->
       super()
       #codec.applyEncoding(aOptions)
       @_options = aOptions
       aKeyPath = getPathArray(aKeyPath)
-      aKeyPath = if aKeyPath then path.normalizeArray(aKeyPath) else []
+      aKeyPath = if aKeyPath then normalizePathArray(aKeyPath) else []
       @_pathArray = aKeyPath
       @self = @
       @unhooks = []
@@ -136,8 +133,8 @@ module.exports = (aDbCore, aCreateReadStream = ReadStream, aCreateWriteStream = 
       that = @
       @on "ready", ->
         that.load(aReadyCallback)
-    final: ->
-      @freeSubkeys()
+    final: (isFreeSubkeys)->
+      @freeSubkeys() if isFreeSubkeys isnt false
       #deregister all hooks
       unhooks = @unhooks
       i = 0
@@ -153,31 +150,47 @@ module.exports = (aDbCore, aCreateReadStream = ReadStream, aCreateWriteStream = 
         aCallback = aOptions
         aOptions = {}
       if not (this instanceof Subkey)
-        vKeyPath = path.normalizeArray getPathArray aKeyPath
-        vSubkey = aDbCore.cache.createSubkey(vKeyPath, Subkey.bind(null, vKeyPath), aOptions, aCallback)
+        vKeyPath = if aKeyPath then normalizePathArray getPathArray aKeyPath else []
+        vSubkey = cache.createSubkey(toPath(vKeyPath), Subkey.bind(null, vKeyPath), aOptions, aCallback)
+        delete aOptions.addRef if aOptions and aOptions.addRef?
         return vSubkey
 
       super(aKeyPath, aOptions, aCallback)
-    parent: ()->
-      p = path.dirname @path()
-      subkeyCache = aDbCore.cache
-      result = subkeyCache.get(p)
-      #get latest parent
-      while not result? and p != PATH_SEP
-        p = path.dirname p
-        result = subkeyCache.get(p)
-      return result
+    parent: (options, callback)->
+      return undefined unless @_pathArray.length
+      if isFunction options
+        callback = options
+        options = {}
+      if options
+        createIfMissing = options.createIfMissing
+        latestParent    = options.latestParent
+      options = @mergeOpts options
+      vkeyPath = @_pathArray.slice(0, @_pathArray.length-1)
+      p = toPath(vkeyPath)
+      if createIfMissing is true
+        cache.createSubkey(p, Subkey.bind(null, vkeyPath), options, callback)
+      else
+        #get latest parent
+        result = cache.get p
+        throw new NotFoundError(p+" path can not be found in cache") if not result? and latestParent isnt true
+        while not result? and p != PATH_SEP
+          p = path.dirname p
+          result = cache.get(p)
+        callback(null, result) if isFunction callback
+        result
+    # setPath will remove itself from cache if successful.
     setPath: (aPath, aCallback) ->
       aPath = getPathArray(aPath)
       if aPath
-        aPath = path.normalizeArray(aPath)
-        vPath = @path() if @_pathArray?
+        aPath = normalizePathArray(aPath)
+        vPath = @fullName if @_pathArray?
         if vPath? and vPath isnt resolvePath(aPath)
-          aDbCore.cache.del(vPath)
+          cache.del(vPath)
           @final()
           #@_pathArray = aPath
           @init(aPath, @_options, aCallback)
           return true
+      aCallback new InvalidArgumentError('path argument is invalid') if aCallback
       false
     _addHook: (key, callback, hooksAdd) ->
       unhook = hooksAdd key, @_pathArray, callback
@@ -209,13 +222,24 @@ module.exports = (aDbCore, aCreateReadStream = ReadStream, aCreateWriteStream = 
         @fullName
       else
         @subkey aPath, aOptions, aCallback
+
     subkey: (name, opts, cb) ->
       vKeyPath = resolvePathArray(@_pathArray, name)
       vKeyPath.shift 0, 1
       if isFunction opts
         cb = opts
         opts = {}
+      opts = @mergeOpts(opts)
+      opts.addRef = false
+      return Subkey(vKeyPath, opts, cb)
+    createSubkey: (name, opts, cb) ->
+      vKeyPath = resolvePathArray(@_pathArray, name)
+      vKeyPath.shift 0, 1
+      if isFunction opts
+        cb = opts
+        opts = {}
       return Subkey(vKeyPath, @mergeOpts(opts), cb)
+    createPath: @::createSubkey
     sublevel: deprecate["function"]((name, opts, cb) ->
         @subkey name, opts, cb
       , "sublevel(), use `subkey(name)` or `path(name)` instead.")
@@ -225,7 +249,7 @@ module.exports = (aDbCore, aCreateReadStream = ReadStream, aCreateWriteStream = 
         aKeyPattern = toPath @_pathArray, "*"
       else
         aKeyPattern = resolvePath(@_pathArray, aKeyPattern)
-      vSubkeys = aDbCore.cache.subkeys(aKeyPattern)
+      vSubkeys = cache.subkeys(aKeyPattern)
       for k of vSubkeys
         vSubkeys[k].free()
       return
@@ -388,6 +412,7 @@ module.exports = (aDbCore, aCreateReadStream = ReadStream, aCreateWriteStream = 
       @_addHook(key, hook, aDbCore.post.bind(aDbCore, opType))
 
     readStream: (opts) ->
+      throw new NotImplementedError("please `npm install nosql-stream` to use streamable feature") unless aCreateReadStream
       opts = @mergeOpts(opts)
       assignDeprecatedPrefixOption opts
       
@@ -412,6 +437,7 @@ module.exports = (aDbCore, aCreateReadStream = ReadStream, aCreateWriteStream = 
     createKeyStream: @::keyStream
 
     writeStream: (opts) ->
+      throw new NotImplementedError("please `npm install nosql-stream` to use streamable feature") unless aCreateWriteStream
       opts = @mergeOpts(opts)
       new aCreateWriteStream(@, opts)
     createWriteStream: @::writeStream
