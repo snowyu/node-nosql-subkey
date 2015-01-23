@@ -142,10 +142,15 @@ animal.get("cucumber", function(err, value){})
 
 ### DB/Subkey.subkey()/path()
 
-Get a new Subkey instance. It will remove from cache if you free it.
-this instance will be freed if parent is freed.
+Get a specified Subkey instance. It will remove from cache if you free it.
+this instance will be freed if its parent is freed.
 
 please use the createSubkey if u wanna keep the instance even parent is freed.
+
+* Subkey.subkey(keyPath, options, readyCallback)
+  * = Subkey.path(keyPath, options, readyCallback)
+* Subkey.subkey(keyPath, readyCallback)
+  * = Subkey.path(keyPath, readyCallback)
 
 __arguments__ see createSubkey below:
 
