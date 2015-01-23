@@ -52,6 +52,19 @@ genData = (db, path = "op", opts, count = 10)->
     valueEncoding = db.valueEncoding _opts
     value = if valueEncoding then valueEncoding.encode(item.value) else item.value
     db.data.should.have.property key, value
+  _opts = {}
+  data.sort (a,b)->
+    _opts.keyEncoding = a.keyEncoding
+    _opts.keyEncoding = opts.keyEncoding if opts and not _opts.keyEncoding
+    keyEncoding = db.keyEncoding _opts
+    a = if keyEncoding then keyEncoding.encode a.key else a.key
+    _opts.keyEncoding = b.keyEncoding
+    _opts.keyEncoding = opts.keyEncoding if opts and not _opts.keyEncoding
+    keyEncoding = db.keyEncoding _opts
+    b = if keyEncoding then keyEncoding.encode b.key else b.key
+    return 1 if a > b
+    return -1 if a < b
+    return 0
   data
 
 getEncodedKey = (db, key, options, parentPath) ->
