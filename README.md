@@ -75,8 +75,9 @@ This module is working well, but may change in the future as its use is further 
 ## Usage
 
 ```js
-var subkeyFeatureTo = require('nosql-subkey')
-var MemDB = subkeyFeatureTo(require('memdown-sync'))
+var addSubkeyFeatureTo = require('nosql-subkey')
+var addStreamFeatureTo = require('nosql-stream')
+var MemDB = addStreamFeatureTo(addSubkeyFeatureTo(require('nosql-memdb')))
 
 var db = new MemDB()
 db.open()
