@@ -253,44 +253,6 @@ module.exports = (aDbCore, aCreateReadStream = ReadStream, aCreateWriteStream = 
       for k of vSubkeys
         vSubkeys[k].free()
       return
-    _doOperation: (aOperation, opts, cb) ->
-      if isFunction opts
-        cb = opts
-        opts = {}
-      else opts = {}  if opts is `undefined`
-      assignDeprecatedPrefixOption opts
-      vPath = if isString(opts.path) and opts.path.length then getPathArray(opts.path) else @_pathArray
-      that = @
-      if isArray(aOperation)
-        vType = "batch"
-        aOperation = aOperation.map((op) ->
-          separator: op.separator
-          key: op.key
-          value: op.value
-          path: resolvePathArray vPath, op.path
-          keyEncoding: op.keyEncoding # *
-          valueEncoding: op.valueEncoding # * (TODO: encodings on sublevel)
-          type: op.type
-        )
-        vInfo = [vType, aOperation]
-      else
-        vType = aOperation.type
-        vInfo = [vType, aOperation.key, aOperation.value]
-        aOperation = [
-          separator: opts.separator
-          path: vPath
-          key: aOperation.key
-          value: aOperation.value
-          type: aOperation.type
-        ]
-      if cb
-        aDbCore.batchAsync aOperation, @mergeOpts(opts), (err) ->
-          unless err
-            that.emit.apply that, vInfo
-            cb.call that, null
-          cb.call that, err  if err
-      else
-        aDbCore.batchSync aOperation, @mergeOpts(opts)
     ###
       put it self:
         put(cb)
@@ -323,7 +285,7 @@ module.exports = (aDbCore, aCreateReadStream = ReadStream, aCreateWriteStream = 
         cb = value
         value = key
         key = "."
-      @_doOperation({key:key, value:value, type: "put"}, opts, cb)
+      if cb then putAsync key, value, opts, callback else putSync key, value, opts
     ###TODO: del itself would destroy itself?  see: the post hook itself in init method.
       del itself:
       del(cb)
@@ -351,7 +313,7 @@ module.exports = (aDbCore, aCreateReadStream = ReadStream, aCreateWriteStream = 
       if isFunction(key) or arguments.length is 0
         cb = key
         key = @path() #use absolute key path to delete alias key itself
-      @_doOperation({key:key, type: "del"}, opts, cb)
+      if cb then delAsync key, opts, callback else delSync key, opts
     batchSync: (ops, opts) ->
       opts = @mergeOpts(opts)
       assignDeprecatedPrefixOption opts
@@ -366,7 +328,10 @@ module.exports = (aDbCore, aCreateReadStream = ReadStream, aCreateWriteStream = 
       opts.path = getPathArray opts.path, @_pathArray
       aDbCore.batchAsync ops, opts, callback
     batch: (ops, opts, cb) ->
-      @_doOperation(ops, opts, cb)
+      if isFunction opts
+        cb = opts
+        opts = {}
+      if cb then batchAsync ops, opts, callback else batchSync ops, opts
     getSync: (key, opts) ->
       if isObject key
         opts = key
