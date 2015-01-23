@@ -136,7 +136,7 @@ describe "Subkey", ->
       p2.free()
       p2.RefCount.should.be.equal 0
       p2.free()
-      p2.objectState.should.be.equal 'destroyed'
+      p2.isDestroyed().should.be.equal true
     it "should get subkey's parent via callback even it's not in cache when createIfMissing", (done)->
       child = @root.path('myparent/god/child')
       testPath child, '/myparent/god/child'
@@ -147,7 +147,7 @@ describe "Subkey", ->
         @root.createPath('/myparent/god').should.be.equal result
         result.RefCount.should.be.equal 2
         result.destroy()
-        result.objectState.should.be.equal 'destroyed'
+        result.isDestroyed().should.be.equal true
         child.free()
         @db.cache.has('/myparent/god').should.be.false
         @db.cache.has('/myparent/god/child').should.be.false
@@ -190,7 +190,7 @@ describe "Subkey", ->
       subkey = @root.createPath('/my/subkey')
       testPath subkey, '/my/subkey'
   describe ".createPath(path)/.createSubkey(path)", ->
-    before -> @subkey = @root.createPath 'myparent'
+    before -> @subkey = @root.path 'myparent'
     after -> @subkey.free()
     it "should create subkey", ->
       key = @subkey.createPath('subkey1')
@@ -220,13 +220,33 @@ describe "Subkey", ->
       key.RefCount.should.be.equal 1
       key.free()
   describe ".path(path)/.subkey(path)", ->
-    before -> @subkey = @root.createPath 'myparent'
+    before -> @subkey = @root.path 'myparent'
     after -> @subkey.free()
     it "should get subkey", ->
       key = @subkey.path('subkey1')
       testPath key, '/myparent/subkey1'
       key.free()
-      key.objectState.should.be.equal 'destroyed'
+      key.isDestroyed().should.be.equal true
+    it "should get many subkeys", ->
+      keys = for i in [0...10]
+        @subkey.path 'subkey'+i
+      keys.should.have.length 10
+      for key,i in keys
+        testPath key, '/myparent/subkey'+i
+        key.free()
+      for key,i in keys
+        key.isDestroyed().should.be.true
+    it "should get the same subkey more once", ->
+      key = @subkey.path('subkey1')
+      key.RefCount.should.be.equal 0
+      testPath key, '/myparent/subkey1'
+      keys = for i in [0...10]
+        k = @subkey.path('subkey1')
+        k.should.be.equal key
+        k
+      key.RefCount.should.be.equal 0
+      key.free()
+      key.isDestroyed().should.be.true
     it "should free subkeys after parent is freed ", ->
       parent = @subkey.path 'parent'
       keys = for i in [0...10]
@@ -236,5 +256,5 @@ describe "Subkey", ->
         testPath key, '/myparent/parent/subkey'+i
       parent.free()
       for key in keys
-        assert.equal key._objectState_, key.OBJECT_STATES.destroyed
+        assert.equal key.isDestroyed(), true
 

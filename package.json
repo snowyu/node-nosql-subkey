@@ -22,7 +22,7 @@
     "json"
   ],
   "dependencies": {
-    "abstract-object": ">=1.6.4",
+    "abstract-object": ">=1.6.5",
     "buffer-codec": ">=1.5.4",
     "depd": "~1.0.0",
     "encoding-iterator": ">=1.0.3",
