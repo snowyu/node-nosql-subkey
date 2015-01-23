@@ -266,16 +266,19 @@ module.exports = (aDbCore, aCreateReadStream = ReadStream, aCreateWriteStream = 
       opts = @mergeOpts(opts)
       assignDeprecatedPrefixOption opts
       opts.path = getPathArray opts.path, @_pathArray
-      aDbCore.putSync key, opts
+      aDbCore.putSync key, value, opts
     putAsync: (key, value, opts, callback) ->
       if arguments.length is 0 or isFunction(key)
-        cb = key
+        callback = key
         key = "."
         value = @value
+      if isFunction opts
+        callback = opts
+        opts = {}
       opts = @mergeOpts(opts)
       assignDeprecatedPrefixOption opts
       opts.path = getPathArray opts.path, @_pathArray
-      aDbCore.putAsync key, opts, cb
+      aDbCore.putAsync key, value, opts, callback
     put: (key, value, opts, cb) ->
       if isFunction(key) or arguments.length is 0
         cb = key
@@ -285,7 +288,10 @@ module.exports = (aDbCore, aCreateReadStream = ReadStream, aCreateWriteStream = 
         cb = value
         value = key
         key = "."
-      if cb then putAsync key, value, opts, callback else putSync key, value, opts
+      else if isFunction opts
+        cb = opts
+        opts = {}
+      if cb then @putAsync key, value, opts, cb else @putSync key, value, opts
     ###TODO: del itself would destroy itself?  see: the post hook itself in init method.
       del itself:
       del(cb)
@@ -313,7 +319,10 @@ module.exports = (aDbCore, aCreateReadStream = ReadStream, aCreateWriteStream = 
       if isFunction(key) or arguments.length is 0
         cb = key
         key = @path() #use absolute key path to delete alias key itself
-      if cb then delAsync key, opts, callback else delSync key, opts
+      else if isFunction opts
+        cb = opts
+        opts = {}
+      if cb then @delAsync key, opts, cb else @delSync key, opts
     batchSync: (ops, opts) ->
       opts = @mergeOpts(opts)
       assignDeprecatedPrefixOption opts
@@ -331,7 +340,7 @@ module.exports = (aDbCore, aCreateReadStream = ReadStream, aCreateWriteStream = 
       if isFunction opts
         cb = opts
         opts = {}
-      if cb then batchAsync ops, opts, callback else batchSync ops, opts
+      if cb then @batchAsync ops, opts, cb else @batchSync ops, opts
     getSync: (key, opts) ->
       if isObject key
         opts = key

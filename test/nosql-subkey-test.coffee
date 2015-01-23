@@ -19,6 +19,7 @@ path            = require '../src/path'
 
 setImmediate          = setImmediate || process.nextTick
 InvalidArgumentError  = Errors.InvalidArgumentError
+NotFoundError         = Errors.NotFoundError
 PATH_SEP              = codec.PATH_SEP
 SUBKEY_SEP            = codec.SUBKEY_SEP
 _encodeKey            = codec._encodeKey
@@ -180,7 +181,7 @@ describe "SubkeyNoSQL", ->
         @db.open({keyEncoding:'json', path: 'root'})
         expectedKey = myKeyName: Math.random()
         @db._getBufferSync.reset()
-        @db.getBufferSync expectedKey
+        should.throw @db.getBufferSync.bind @db, expectedKey, NotFoundError
         expectedKey = getEncodedKey @db, expectedKey
         @db._getBufferSync.should.have.been.calledWith expectedKey
         @db._getSync.should.have.been.calledWith expectedKey
@@ -189,7 +190,7 @@ describe "SubkeyNoSQL", ->
         @db.open({keyEncoding:'json'})
         expectedKey = myKeyName: Math.random()
         @db._getBufferSync.reset()
-        @db.getBuffer expectedKey
+        should.throw @db.getBuffer.bind @db, expectedKey, NotFoundError
         expectedKey = getEncodedKey @db, expectedKey
         @db._getBufferSync.should.have.been.calledWith expectedKey
       it "should encode key async", (done)->
@@ -199,7 +200,8 @@ describe "SubkeyNoSQL", ->
         opts = path: 'other'
         @db.getBuffer expectedKey, null, opts, (err, result)=>
           expectedKey = getEncodedKey @db, expectedKey, opts
-          should.not.exist err
+          should.exist err
+          err.notFound().should.be.true
           @db._getBufferSync.should.have.been.calledWith expectedKey
           done()
 

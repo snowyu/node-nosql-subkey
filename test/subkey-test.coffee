@@ -47,6 +47,11 @@ genData = (db, path = "op", opts, count = 10)->
 
 getEncodedKey = (db, key, options, parentPath) ->
   _encodeKey db.getPathArray(options, parentPath), key, db.keyEncoding(options), options
+getEncodedValue = (db, value, options) ->
+  encoding = db.valueEncoding options
+  value = encoding.encode value if encoding
+  value
+
 getEncodedOps = (db, ops, opts) ->
   vParentPath = opts.path if opts
   ops.slice().map (op) ->
@@ -257,4 +262,201 @@ describe "Subkey", ->
       parent.free()
       for key in keys
         assert.equal key.isDestroyed(), true
+    it "should not free subkeys after parent is freed if pass free(false)", ->
+      parent = @subkey.path 'parent'
+      keys = for i in [0...10]
+        parent.path 'subkey'+i
+      keys.should.have.length 10
+      for key,i in keys
+        testPath key, '/myparent/parent/subkey'+i
+      # pass false to do not free subkeys:
+      parent.free(false)
+      for key in keys
+        assert.equal key.isDestroyed(), false
+  describe "put operation", ->
+    before -> @subkey = @root.path 'myputParent'
+    after -> @subkey.free()
+    it "should put key value via .putSync", ->
+      key = "myput"+Math.random()
+      value = Math.random()
+      @subkey.putSync key, value
+      encodedKey = getEncodedKey @db, key, undefined, @subkey
+      result = @db.data[encodedKey]
+      result.should.be.equal getEncodedValue @db, value
+    it "should put key value via .putAsync", (done)->
+      key = "myput"+Math.random()
+      value = Math.random()
+      @subkey.putAsync key, value, (err)=>
+        should.not.exist err
+        encodedKey = getEncodedKey @db, key, undefined, @subkey
+        result = @db.data[encodedKey]
+        result.should.be.equal getEncodedValue @db, value
+        done()
+    it "should put another path key value via .putSync", ->
+      key = "myput"+Math.random()
+      value = Math.random()
+      @subkey.putSync key, value, {path: 'hahe'}
+      encodedKey = getEncodedKey @db, key, {path: 'hahe'}, @subkey
+      result = @db.data[encodedKey]
+      result.should.be.equal getEncodedValue @db, value
+    it "should put another path key value via .putAsync", (done)->
+      key = "myput"+Math.random()
+      value = Math.random()
+      @subkey.putAsync key, value, {path: 'hahe'}, (err)=>
+        should.not.exist err
+        encodedKey = getEncodedKey @db, key, {path: 'hahe'}, @subkey
+        result = @db.data[encodedKey]
+        result.should.be.equal getEncodedValue @db, value
+        done()
+    it "should put key value via .put", ->
+      key = "myput"+Math.random()
+      value = Math.random()
+      @subkey.put key, value
+      encodedKey = getEncodedKey @db, key, undefined, @subkey
+      result = @db.data[encodedKey]
+      result.should.be.equal getEncodedValue @db, value
+    it "should put key value via .put async", (done)->
+      key = "myput"+Math.random()
+      value = Math.random()
+      @subkey.put key, value, (err)=>
+        should.not.exist err
+        encodedKey = getEncodedKey @db, key, undefined, @subkey
+        result = @db.data[encodedKey]
+        result.should.be.equal getEncodedValue @db, value
+        done()
+  describe "get operation", ->
+    before -> @subkey = @root.path 'myGetParent'
+    after -> @subkey.free()
+    it "should get key via .getSync", ->
+      key = "myput"+Math.random()
+      value = Math.random()
+      @subkey.putSync key, value
+      encodedKey = getEncodedKey @db, key, undefined, @subkey
+      result = @db.data[encodedKey]
+      result.should.be.equal getEncodedValue @db, value
+      result = @subkey.getSync key
+      result.should.be.equal value
+    it "should get key value via .getAsync", (done)->
+      key = "myput"+Math.random()
+      value = Math.random()
+      @subkey.putSync key, value
+      encodedKey = getEncodedKey @db, key, undefined, @subkey
+      result = @db.data[encodedKey]
+      result.should.be.equal getEncodedValue @db, value
+      @subkey.getAsync key, (err, result)=>
+        should.not.exist err
+        result.should.be.equal value
+        done()
+    it "should get another path key value via .getSync", ->
+      key = "myput"+Math.random()
+      value = Math.random()
+      @subkey.putSync key, value, {path: 'hahe'}
+      encodedKey = getEncodedKey @db, key, {path: 'hahe'}, @subkey
+      result = @db.data[encodedKey]
+      result.should.be.equal getEncodedValue @db, value
+      result = @subkey.getSync key, {path: 'hahe'}
+      result.should.be.equal value
+    it "should get another path key value via .getAsync", (done)->
+      key = "myput"+Math.random()
+      value = Math.random()
+      @subkey.putSync key, value, {path: 'hahe'}
+      encodedKey = getEncodedKey @db, key, {path: 'hahe'}, @subkey
+      result = @db.data[encodedKey]
+      result.should.be.equal getEncodedValue @db, value
+      @subkey.getAsync key, {path: 'hahe'}, (err, result)=>
+        should.not.exist err
+        result.should.be.equal value
+        done()
+    it "should get key value via .get", ->
+      key = "myput"+Math.random()
+      value = Math.random()
+      @subkey.put key, value
+      encodedKey = getEncodedKey @db, key, undefined, @subkey
+      result = @db.data[encodedKey]
+      result.should.be.equal getEncodedValue @db, value
+      result = @subkey.get key
+      result.should.be.equal value
+    it "should get key value via .get async", (done)->
+      key = "myput"+Math.random()
+      value = Math.random()
+      @subkey.put key, value
+      encodedKey = getEncodedKey @db, key, undefined, @subkey
+      result = @db.data[encodedKey]
+      result.should.be.equal getEncodedValue @db, value
+      @subkey.get key, (err, result)=>
+        should.not.exist err
+        result.should.be.equal value
+        done()
+  describe "del operation", ->
+    before -> @subkey = @root.path 'myDelParent'
+    after -> @subkey.free()
+    it "should del key via .delSync", ->
+      key = "myput"+Math.random()
+      value = Math.random()
+      @subkey.putSync key, value
+      encodedKey = getEncodedKey @db, key, undefined, @subkey
+      result = @db.data[encodedKey]
+      result.should.be.equal getEncodedValue @db, value
+      result = @subkey.delSync key
+      result.should.be.equal true
+      result = @db.data[encodedKey]
+      should.not.exist result
+    it "should del key value via .delAsync", (done)->
+      key = "myput"+Math.random()
+      value = Math.random()
+      @subkey.putSync key, value
+      encodedKey = getEncodedKey @db, key, undefined, @subkey
+      result = @db.data[encodedKey]
+      result.should.be.equal getEncodedValue @db, value
+      @subkey.delAsync key, (err, result)=>
+        should.not.exist err
+        result = @db.data[encodedKey]
+        should.not.exist result
+        done()
+    it "should del another path key value via .delSync", ->
+      key = "myput"+Math.random()
+      value = Math.random()
+      @subkey.putSync key, value, {path: 'hahe'}
+      encodedKey = getEncodedKey @db, key, {path: 'hahe'}, @subkey
+      result = @db.data[encodedKey]
+      result.should.be.equal getEncodedValue @db, value
+      result = @subkey.delSync key, {path: 'hahe'}
+      result.should.be.equal true
+      result = @db.data[encodedKey]
+      should.not.exist result
+    it "should del another path key value via .delAsync", (done)->
+      key = "myput"+Math.random()
+      value = Math.random()
+      @subkey.putSync key, value, {path: 'hahe'}
+      encodedKey = getEncodedKey @db, key, {path: 'hahe'}, @subkey
+      result = @db.data[encodedKey]
+      result.should.be.equal getEncodedValue @db, value
+      @subkey.delAsync key, {path: 'hahe'}, (err, result)=>
+        should.not.exist err
+        result = @db.data[encodedKey]
+        should.not.exist result
+        done()
+    it "should del key value via .del", ->
+      key = "myput"+Math.random()
+      value = Math.random()
+      @subkey.put key, value
+      encodedKey = getEncodedKey @db, key, undefined, @subkey
+      result = @db.data[encodedKey]
+      result.should.be.equal getEncodedValue @db, value
+      result = @subkey.del key
+      result.should.be.equal true
+      result = @db.data[encodedKey]
+      should.not.exist result
+    it "should del key value via .del async", (done)->
+      key = "myput"+Math.random()
+      value = Math.random()
+      @subkey.put key, value
+      encodedKey = getEncodedKey @db, key, undefined, @subkey
+      result = @db.data[encodedKey]
+      result.should.be.equal getEncodedValue @db, value
+      @subkey.del key, (err, result)=>
+        should.not.exist err
+        result = @db.data[encodedKey]
+        should.not.exist result
+        done()
 

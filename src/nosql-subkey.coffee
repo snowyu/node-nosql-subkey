@@ -91,9 +91,8 @@ module.exports = class SubkeyNoSQL
     first check preHooks if operationType
     return falsse if prehooks disallow this operation 
     or return encoded string.
-    ops: only for batch(trasaction) operations
   ###
-  encodeKey: (aPathArray, aKey, op, operationType, ops)->
+  encodeKey: (aPathArray, aKey, op, operationType)->
     result = prepareOperation(@preHooks, operationType, op, aPathArray, aKey)
     return false if result is HALT_OP
 
@@ -150,8 +149,9 @@ module.exports = class SubkeyNoSQL
     key = @encodeKey path, key, options, GET_OP
     return false if key is false
     result = AbstractNoSQL::getSync.call(@, key, options)
-    encoding = @valueEncoding options
-    result = encoding.decode(result) if encoding
+    if result isnt undefined
+      encoding = @valueEncoding options
+      result = encoding.decode(result) if encoding
     result
   getAsync: (key, options, callback) ->
     path = @getPathArray(options)

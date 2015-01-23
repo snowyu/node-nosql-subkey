@@ -56,11 +56,15 @@ module.exports = class SubkeyCodec
 
 
   @getPathArray: getPathArray = (aPath, aRootPath) ->
-    return aPath unless aPath?
+    if not aPath?
+      return aPath unless aRootPath?
+      return aRootPath.pathAsArray() if isFunction(aRootPath.pathAsArray)
+      return aRootPath
     #is a subkey object?
     return aPath.pathAsArray() if isFunction(aPath.pathAsArray)
     if isString(aPath)
       if aRootPath
+        aRootPath = aRootPath.pathAsArray() if isFunction(aRootPath.pathAsArray)
         aPath = resolvePathArray(aRootPath, aPath)
         aPath.shift(0,1)
       else aPath = toPathArray(aPath)
@@ -71,7 +75,6 @@ module.exports = class SubkeyCodec
     if isString(aKey) && aKey.length
       aPathArray = resolvePathArray(aPathArray, aKey)
       aPathArray.shift(0,1)
-      isAbsolutePath = aPathArray.shift(0,1)
       aKey = aPathArray.pop()
       if op.separator && op.separator != PATH_SEP
         aKey = op.separator + aKey if aKey[0] != op.separator
