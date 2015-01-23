@@ -72,14 +72,25 @@ module.exports = class SubkeyCodec
     aPath
 
   @prepareKeyPath: prepareKeyPath = (aPathArray, aKey, op) ->
+    vKey = aKey
     if isString(aKey) && aKey.length
       aPathArray = resolvePathArray(aPathArray, aKey)
       aPathArray.shift(0,1)
       aKey = aPathArray.pop()
+      vKey = aKey
+      # parse separator from the key string:
+      i = SUBKEY_SEPS[0].indexOf(aKey[0], 1)
+      if i > 0
+        op.separator = aKey[0] if not op.separator
+        aKey = aKey.slice(1) if op.separator is aKey[0]
+      ###
+      # remove separator parameter and add it to string:
       if op.separator && op.separator != PATH_SEP
         aKey = op.separator + aKey if aKey[0] != op.separator
         op.separator = undefined if aKey[0] is op.separator
-    op._keyPath = [aPathArray, aKey]
+      ###
+
+    op._keyPath = [aPathArray, vKey]
     op.path = aPathArray
     op.key = aKey
     return
@@ -112,13 +123,12 @@ module.exports = class SubkeyCodec
     prepareKeyPath(aPathArray, aKey, op)
     [op.path, op.key]
 
-  @encode = encode = (aPath, aKey, aSeperator, dontEscapeSeperator)->
+  @encode = encode = (aPath, aKey, aSeperator, dontEscapeSeperator, keyEncoding)->
     keyIsStr = isString(aKey) and aKey.length > 0
     hasSep   = !!aSeperator
     aSeperator = SUBKEY_SEP unless aSeperator
     if keyIsStr
       if hasSep && aKey[0] == aSeperator then aKey = aKey.substring(1)
-      aKey = escapeString(aKey)
     if dontEscapeSeperator is true
       aSeperator = PATH_SEP + aSeperator if hasSep and aSeperator isnt PATH_SEP
       hasSep = false
@@ -133,8 +143,9 @@ module.exports = class SubkeyCodec
       #try to find the separator on the key
       i = SUBKEY_SEPS[0].indexOf(aKey[0], 1)
       if i > 0
-          vSeperator = PATH_SEP + SUBKEY_SEPS[1][i]
+          aSeperator = PATH_SEP + SUBKEY_SEPS[1][i]
           aKey = aKey.substring(1)
+    aKey = escapeString(aKey) if keyIsStr
     #console.log("codec.encode:",path.join(e[0]) + vSeperator + key)
     #TODO: I should encode with path.join(e[0], vSeperator + key)) simply in V8.
     #      all separators are same now.
@@ -144,6 +155,7 @@ module.exports = class SubkeyCodec
       aPath = ""
     else
       aPath = PATH_SEP
+    aKey = keyEncoding.encode aKey if keyEncoding
     aPath + aSeperator + aKey
 
   indexOfType = (s) ->
@@ -171,11 +183,11 @@ module.exports = class SubkeyCodec
     result
 
   @_encodeKey: _encodeKey = (aPathArray, aKey, keyEncoding, options)->
-    aKey = keyEncoding.encode(aKey) if keyEncoding
+    #aKey = keyEncoding.encode(aKey) if keyEncoding
     if options
       vSep    = options.separator
       vSepRaw = options.separatorRaw
-    encode aPathArray, aKey, vSep, vSepRaw
+    encode aPathArray, aKey, vSep, vSepRaw, keyEncoding
 
   @encodeKey: encodeKey = (aPathArray, aKey, keyEncoding, options, operationType, preHooks)->
     prepareOperation(preHooks, operationType, options, aPathArray, aKey)

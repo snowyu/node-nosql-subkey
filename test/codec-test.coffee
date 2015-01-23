@@ -129,3 +129,27 @@ describe "SubkeyCodec", ->
       assert.deepEqual(format.decode('/path/Key$ABC'), [["path", "Key"], "ABC", "/!"])
       assert.deepEqual(format.decode('/path/Key.ABC'), [["path", "Key"], "ABC", "/"])
       format.SUBKEY_SEPS = oldSeps
+  describe "prepareKeyPath", ->
+    prepareKeyPath = codec.prepareKeyPath
+    it "should prepare keyPath to op", ->
+      op = {}
+      key = 'key'+Math.random()
+      prepareKeyPath ['apath'], 'subpath/'+key, op
+      op.path.should.be.deep.equal ['apath', 'subpath']
+      op.key.should.be.equal key
+      prepareKeyPath ['apath'], 123, op
+      op.path.should.be.deep.equal ['apath']
+      op.key.should.be.equal 123
+      prepareKeyPath ['apath'],  'subpath/.'+key, op
+      op.path.should.be.deep.equal ['apath', 'subpath']
+      op.key.should.be.equal key
+      op.separator.should.be.equal '.'
+      prepareKeyPath ['apath'],  'subpath/.'+key, op
+      op.path.should.be.deep.equal ['apath', 'subpath']
+      op.key.should.be.equal key
+      op.separator.should.be.equal '.'
+      op._keyPath.should.be.deep.equal [['apath', 'subpath'], '.'+key]
+      delete op.separator
+      prepareKeyPath ['apath'],  '/subpath/'+key, op
+      op.path.should.be.deep.equal ['subpath']
+      op.key.should.be.equal key

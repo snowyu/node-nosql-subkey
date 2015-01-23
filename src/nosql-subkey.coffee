@@ -295,11 +295,12 @@ module.exports = class SubkeyNoSQL
       op = operations[i]
       op.type = 'put' unless op.type
       op.path = @getPathArray(op, vParentPath)
+      op.separator = options.separator if not op.separator and options and options.separator
       result = prepareOperation(@preHooks, TRANS_OP, op)
       if result is HALT_OP
         delete operations[i]
       else if result isnt SKIP_OP # skip encodeKey
-        op.key = _encodeKey op.path, op.key, Codec(op.keyEncoding) || keyEncoding, operations
+        op.key = _encodeKey op.path, op.key, Codec(op.keyEncoding) || keyEncoding, op
       vEncoding = Codec(op.valueEncoding) || valueEncoding
       op._keyPath[2] = op.value
       op.value = vEncoding.encode(op.value) if vEncoding
@@ -326,7 +327,7 @@ module.exports = class SubkeyNoSQL
       callback = options
       options = undefined
     if isArray operations
-      @prepareOperations operations
+      @prepareOperations operations, options
       that = @
       AbstractNoSQL::batchAsync.call @, operations, options, (err, result)->
         return that.dispatchError err, callback if err
@@ -334,6 +335,7 @@ module.exports = class SubkeyNoSQL
           vKeyPath = op._keyPath
           op.path = vKeyPath[0]
           op.key = vKeyPath[1]
+          op.value = vKeyPath[2]
           delete op._keyPath
           vOpType = if op.type is 'del' then DEL_OP else PUT_OP
           that.postHooks.trigger(vOpType, vKeyPath, [vOpType, op]) if op.triggerAfter != false

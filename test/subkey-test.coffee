@@ -46,6 +46,7 @@ genData = (db, path = "op", opts, count = 10)->
   data
 
 getEncodedKey = (db, key, options, parentPath) ->
+  options = {} unless options
   _encodeKey db.getPathArray(options, parentPath), key, db.keyEncoding(options), options
 getEncodedValue = (db, value, options) ->
   encoding = db.valueEncoding options
@@ -292,6 +293,38 @@ describe "Subkey", ->
         result = @db.data[encodedKey]
         result.should.be.equal getEncodedValue @db, value
         done()
+    it "should put attribute via separator (.putSync)", ->
+      key = "myput"+Math.random()
+      value = Math.random()
+      @subkey.putSync key, value, separator: '.'
+      encodedKey = getEncodedKey @db, key, separator:'.', @subkey
+      result = @db.data[encodedKey]
+      result.should.be.equal getEncodedValue @db, value
+    it "should put attribute (.putSync)", ->
+      key = ".myput"+Math.random()
+      value = Math.random()
+      @subkey.putSync key, value
+      encodedKey = getEncodedKey @db, key, undefined, @subkey
+      result = @db.data[encodedKey]
+      result.should.be.equal getEncodedValue @db, value
+    it "should put attribute via separator (.putAsync)", (done)->
+      key = "myput"+Math.random()
+      value = Math.random()
+      @subkey.putAsync key, value, separator:'.', (err)=>
+        should.not.exist err
+        encodedKey = getEncodedKey @db, key, separator:'.', @subkey
+        result = @db.data[encodedKey]
+        result.should.be.equal getEncodedValue @db, value
+        done()
+    it "should put attribute (.putAsync)", (done)->
+      key = ".myput"+Math.random()
+      value = Math.random()
+      @subkey.putAsync key, value, (err)=>
+        should.not.exist err
+        encodedKey = getEncodedKey @db, key, undefined, @subkey
+        result = @db.data[encodedKey]
+        result.should.be.equal getEncodedValue @db, value
+        done()
     it "should put another path key value via .putSync", ->
       key = "myput"+Math.random()
       value = Math.random()
@@ -327,7 +360,7 @@ describe "Subkey", ->
   describe "get operation", ->
     before -> @subkey = @root.path 'myGetParent'
     after -> @subkey.free()
-    it "should get key via .getSync", ->
+    it "should get key .getSync", ->
       key = "myput"+Math.random()
       value = Math.random()
       @subkey.putSync key, value
@@ -336,7 +369,7 @@ describe "Subkey", ->
       result.should.be.equal getEncodedValue @db, value
       result = @subkey.getSync key
       result.should.be.equal value
-    it "should get key value via .getAsync", (done)->
+    it "should get key .getAsync", (done)->
       key = "myput"+Math.random()
       value = Math.random()
       @subkey.putSync key, value
@@ -347,6 +380,56 @@ describe "Subkey", ->
         should.not.exist err
         result.should.be.equal value
         done()
+    it "should get attribute .getSync", ->
+      key = ".myput"+Math.random()
+      value = Math.random()
+      @subkey.putSync key, value
+      encodedKey = getEncodedKey @db, key, undefined, @subkey
+      result = @db.data[encodedKey]
+      result.should.be.equal getEncodedValue @db, value
+      result = @subkey.getSync key
+      result.should.be.equal value
+      result = @subkey.getSync key.slice(1), separator:'.'
+      result.should.be.equal value
+    it "should get attribute via separator .getSync", ->
+      key = "myput"+Math.random()
+      value = Math.random()
+      @subkey.putSync key, value, separator:'.'
+      encodedKey = getEncodedKey @db, key, separator:'.', @subkey
+      result = @db.data[encodedKey]
+      result.should.be.equal getEncodedValue @db, value
+      result = @subkey.getSync key, separator:'.'
+      result.should.be.equal value
+      result = @subkey.getSync '.'+key
+      result.should.be.equal value
+    it "should get attribute .getAsync", (done)->
+      key = ".myput"+Math.random()
+      value = Math.random()
+      @subkey.putSync key, value
+      encodedKey = getEncodedKey @db, key, undefined, @subkey
+      result = @db.data[encodedKey]
+      result.should.be.equal getEncodedValue @db, value
+      @subkey.getAsync key, (err, result)=>
+        should.not.exist err
+        result.should.be.equal value
+        @subkey.getAsync key.slice(1), separator:'.', (err, result)=>
+          should.not.exist err
+          result.should.be.equal value
+          done()
+    it "should get attribute via separator .getAsync", (done)->
+      key = "myput"+Math.random()
+      value = Math.random()
+      @subkey.putSync key, value, separator:'.'
+      encodedKey = getEncodedKey @db, key, separator:'.', @subkey
+      result = @db.data[encodedKey]
+      result.should.be.equal getEncodedValue @db, value
+      @subkey.getAsync key, separator:'.', (err, result)=>
+        should.not.exist err
+        result.should.be.equal value
+        @subkey.getAsync '.'+key, (err, result)=>
+          should.not.exist err
+          result.should.be.equal value
+          done()
     it "should get another path key value via .getSync", ->
       key = "myput"+Math.random()
       value = Math.random()
@@ -390,7 +473,7 @@ describe "Subkey", ->
   describe "del operation", ->
     before -> @subkey = @root.path 'myDelParent'
     after -> @subkey.free()
-    it "should del key via .delSync", ->
+    it "should del key .delSync", ->
       key = "myput"+Math.random()
       value = Math.random()
       @subkey.putSync key, value
@@ -401,7 +484,7 @@ describe "Subkey", ->
       result.should.be.equal true
       result = @db.data[encodedKey]
       should.not.exist result
-    it "should del key value via .delAsync", (done)->
+    it "should del key .delAsync", (done)->
       key = "myput"+Math.random()
       value = Math.random()
       @subkey.putSync key, value
@@ -409,6 +492,52 @@ describe "Subkey", ->
       result = @db.data[encodedKey]
       result.should.be.equal getEncodedValue @db, value
       @subkey.delAsync key, (err, result)=>
+        should.not.exist err
+        result = @db.data[encodedKey]
+        should.not.exist result
+        done()
+    it "should del attribute .delSync", ->
+      key = ".myput"+Math.random()
+      value = Math.random()
+      @subkey.putSync key, value
+      encodedKey = getEncodedKey @db, key, undefined, @subkey
+      result = @db.data[encodedKey]
+      result.should.be.equal getEncodedValue @db, value
+      result = @subkey.delSync key
+      result.should.be.equal true
+      result = @db.data[encodedKey]
+      should.not.exist result
+    it "should del attribute via separator .delSync", ->
+      key = "myput"+Math.random()
+      value = Math.random()
+      @subkey.putSync key, value, separator:'.'
+      encodedKey = getEncodedKey @db, key, separator:'.', @subkey
+      result = @db.data[encodedKey]
+      result.should.be.equal getEncodedValue @db, value
+      result = @subkey.delSync key, separator:'.'
+      result.should.be.equal true
+      result = @db.data[encodedKey]
+      should.not.exist result
+    it "should del attribute .delAsync", (done)->
+      key = ".myput"+Math.random()
+      value = Math.random()
+      @subkey.putSync key, value
+      encodedKey = getEncodedKey @db, key, undefined, @subkey
+      result = @db.data[encodedKey]
+      result.should.be.equal getEncodedValue @db, value
+      @subkey.delAsync key, (err, result)=>
+        should.not.exist err
+        result = @db.data[encodedKey]
+        should.not.exist result
+        done()
+    it "should del attribute via separator .delAsync", (done)->
+      key = "myput"+Math.random()
+      value = Math.random()
+      @subkey.putSync key, value, separator:'.'
+      encodedKey = getEncodedKey @db, key, separator:'.', @subkey
+      result = @db.data[encodedKey]
+      result.should.be.equal getEncodedValue @db, value
+      @subkey.delAsync key, separator:'.', (err, result)=>
         should.not.exist err
         result = @db.data[encodedKey]
         should.not.exist result
@@ -459,4 +588,68 @@ describe "Subkey", ->
         result = @db.data[encodedKey]
         should.not.exist result
         done()
+  describe "batch operation", ->
+    before -> @subkey = @root.path 'myBatchParent'
+    after -> @subkey.free()
+    genOps = (separator='', count=10)->
+      for i in [1..count]
+        key: separator+'key'+Math.random()
+        value: Math.random()
+    testOps = (ops, options) ->
+      #console.log 'data', @db.data
+      for op in ops
+        encodedKey = getEncodedKey @db, op.key, options, @subkey
+        result = @db.data[encodedKey]
+        result.should.be.equal getEncodedValue @db, op.value
+    it ".batchSync", ->
+      ops = genOps()
+      @subkey.batchSync ops
+      testOps.call @, ops, undefined
+    it ".batchAsync", (done)->
+      ops = genOps()
+      @subkey.batchAsync ops, (err)=>
+        should.not.exist err
+        testOps.call @, ops
+        done()
+    it "should batch attribute via separator (.batchSync)", ->
+      ops = genOps()
+      @subkey.batchSync ops, separator:'.'
+      testOps.call @, ops, separator:'.'
+    it "should batch attribute (.batchSync)", ->
+      ops = genOps('.')
+      @subkey.batchSync ops
+      testOps.call @, ops
+    it "should batch attribute via separator (.batchAsync)", (done)->
+      ops = genOps()
+      @subkey.batchAsync ops, separator:'.', (err)=>
+        should.not.exist err
+        testOps.call @, ops, separator:'.'
+        done()
+    it "should batch attribute (.batchAsync)", (done)->
+      ops = genOps('.')
+      @subkey.batchAsync ops, (err)=>
+        should.not.exist err
+        testOps.call @, ops
+        done()
+    it "should batch another path key value via .batchSync", ->
+      ops = genOps()
+      @subkey.batchSync ops, path: 'hahe'
+      testOps.call @, ops, path: 'hahe'
+    it "should batch another path key value via .batchAsync", (done)->
+      ops = genOps()
+      @subkey.batchAsync ops, path: 'hahe', (err)=>
+        should.not.exist err
+        testOps.call @, ops, path: 'hahe'
+        done()
+    it ".batch", ->
+      ops = genOps()
+      @subkey.batch ops, path: 'hahe'
+      testOps.call @, ops, path: 'hahe'
+    it ".batch async", (done)->
+      ops = genOps()
+      @subkey.batchAsync ops, path: 'hahe', (err)=>
+        should.not.exist err
+        testOps.call @, ops, path: 'hahe'
+        done()
+
 
