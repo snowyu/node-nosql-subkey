@@ -4,15 +4,55 @@ inherits          = require 'abstract-object/lib/util/inherits'
 
 module.exports =  class FakeIterator
   inherits FakeIterator, EncodingIterator
+  getIndexGreaterThan = (arr, name)->
+    i = -1
+    while ++i < arr.length
+      return i if name <= arr[i] 
+    return -1
+  getIndexLessThan = (arr, name)->
+    i = arr.length
+    while --i >= 0
+      return i if name >= arr[i]
+    return -1
   constructor: ->
-    @i=0
     super
     @keys = Object.keys @db.data
+    @keys.sort()
+    @start      = 0
+    @notReverse = @options.reverse isnt true
+    @end        = @keys.length
+    if @options.lt
+      index = getIndexLessThan(@keys, @options.lt)
+      index = @keys.length if index < 0
+      index--
+      if @notReverse
+        @end = index
+      else
+        @start = index
+    else if @options.lte
+      index = getIndexLessThan(@keys, @options.lte)
+      index = @keys.length if index < 0
+      if @notReverse
+        @end = index
+      else
+        @start = index
+    if @options.gt
+      index = getIndexGreaterThan(@keys, @options.gt) + 1
+      if @notReverse
+        @start = index
+      else
+        @end = index
+    else if @options.gte
+      index = getIndexGreaterThan(@keys, @options.gte)
+      if @notReverse
+        @start = index
+      else
+        @end = index
   _nextSync: sinon.spy ->
-    result  = @i < @keys.length
+    result  = @start < @end
     if result
-      key   = @keys[@i]
+      key   = @keys[@start]
       result= [key, @db.data[key]]
-      ++@i
+      ++@start
     result
 
