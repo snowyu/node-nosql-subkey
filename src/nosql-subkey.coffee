@@ -80,12 +80,12 @@ module.exports = class SubkeyNoSQL
     AbstractNoSQL::constructor.apply(this, arguments)
   init: ->
     @cache = new SubkeyCache()
-    @Subkey = subkey(@)
+    @SubkeyClass = subkey(@)
     super
   final: ->
     @cache.free()
     @cache = undefined
-    @Subkey = undefined
+    @SubkeyClass = undefined
     super
   ###
     first check preHooks if operationType
@@ -394,7 +394,7 @@ module.exports = class SubkeyNoSQL
       aReadyCallback = aOptions
       aOptions = undefined
     aOptions = extend {}, @_options, aOptions
-    @Subkey(aKeyPath, aOptions, aReadyCallback)
+    @SubkeyClass(aKeyPath, aOptions, aReadyCallback)
   createPath: @::createSubkey
   subkey: (aKeyPath, aOptions, aReadyCallback)->
     if isFunction aOptions
@@ -402,7 +402,7 @@ module.exports = class SubkeyNoSQL
       aOptions = undefined
     aOptions = extend {}, @_options, aOptions
     aOptions.addRef = false
-    @Subkey(aKeyPath, aOptions, aReadyCallback)
+    @SubkeyClass(aKeyPath, aOptions, aReadyCallback)
   path: @::subkey
 
   root: (aOptions, aReadyCallback)->

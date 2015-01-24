@@ -86,10 +86,10 @@ describe "SubkeyNoSQL", ->
     @db.close()
 
   testOpen = (db)->
-    should.exist db.Subkey
-    should.exist db.preHooks
-    should.exist db.postHooks
-    should.exist db.cache
+    should.exist db.SubkeyClass, "db.SubkeyClass"
+    should.exist db.preHooks, "db.preHooks"
+    should.exist db.postHooks, "db.postHooks"
+    should.exist db.cache, "db.cache"
   describe ".open", ->
     afterEach ->
       @db.close()
