@@ -22,14 +22,14 @@
     "json"
   ],
   "dependencies": {
-    "abstract-object": ">=1.6.5",
-    "buffer-codec": ">=1.5.4",
+    "abstract-object": "~1.7.0",
+    "buffer-codec": "~1.5.4",
     "depd": "~1.0.0",
-    "encoding-iterator": ">=1.0.3",
+    "encoding-iterator": "~1.0.3",
     "ltgt": "~2.0.0",
     "minimatch": "~2.0.1",
-    "nosql-encoding": ">=1.1.2",
-    "secondary-cache": ">=1.1.4"
+    "nosql-encoding": "~1.2.1",
+    "secondary-cache": "~1.1.4"
   },
   "devDependencies": {
     "chai": "~1.10.0",

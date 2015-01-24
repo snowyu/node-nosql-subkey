@@ -78,11 +78,11 @@ module.exports = class SubkeyNoSQL
       else
         throw new InvalidArgumentError("class should be inherited from EncodingNoSQL or AbstractNoSQL")
     AbstractNoSQL::constructor.apply(this, arguments)
-  init: ->
+  initialize: ->
     @cache = new SubkeyCache()
     @SubkeyClass = subkey(@)
     super
-  final: ->
+  finalize: ->
     @cache.free()
     @cache = undefined
     @SubkeyClass = undefined

@@ -70,6 +70,40 @@ module.exports = (dbCore, DefaultReadStream = ReadStream, DefaultWriteStream = W
         vSubkey = cache.createSubkey(toPath(vKeyPath), Subkey.bind(null, vKeyPath), aOptions, aCallback)
         return vSubkey
       super(aKeyPath, aOptions, aCallback)
+    initialize: (aKeyPath, aOptions, aReadyCallback)->
+      super()
+      #codec.applyEncoding(aOptions)
+      @db = dbCore
+      @_options = aOptions
+      aKeyPath = getPathArray(aKeyPath)
+      aKeyPath = if aKeyPath then normalizePathArray(aKeyPath) else []
+      @_pathArray = aKeyPath
+      @self = @
+      @unhooks = []
+      @listeners =
+        ready: @emit.bind(@, "ready")
+        closing: @emit.bind(@, "closing")
+        closed: @emit.bind(@, "closed")
+        error: @emit.bind(@, "error")
+      for event, listener of @listeners
+        dbCore.on event, listener 
+      @setLoadingState "unload"
+      @load(aReadyCallback)
+      that = @
+      @on "ready", ->
+        that.load(aReadyCallback)
+    finalize: (isFreeSubkeys)->
+      @freeSubkeys() if isFreeSubkeys isnt false
+      #deregister all hooks
+      unhooks = @unhooks
+      i = 0
+
+      while i < unhooks.length
+        unhooks[i]()
+        i++
+      @unhooks = []
+      for event, listener of @listeners
+        dbCore.removeListener event, listener
 
     @::__defineGetter__ "sublevels", ->
       deprecate "sublevels, all subkeys(sublevels) have cached on dbCore.cache now."
@@ -123,40 +157,6 @@ module.exports = (dbCore, DefaultReadStream = ReadStream, DefaultWriteStream = W
         @dispatchError err, callback
     loadSync: -> if @_loadSync then @_loadSync() else true
     load: (aReadyCallback)-> if aReadyCallback then @loadAsync(aReadyCallback) else @loadSync()
-    init: (aKeyPath, aOptions, aReadyCallback)->
-      super()
-      #codec.applyEncoding(aOptions)
-      @db = dbCore
-      @_options = aOptions
-      aKeyPath = getPathArray(aKeyPath)
-      aKeyPath = if aKeyPath then normalizePathArray(aKeyPath) else []
-      @_pathArray = aKeyPath
-      @self = @
-      @unhooks = []
-      @listeners =
-        ready: @emit.bind(@, "ready")
-        closing: @emit.bind(@, "closing")
-        closed: @emit.bind(@, "closed")
-        error: @emit.bind(@, "error")
-      for event, listener of @listeners
-        dbCore.on event, listener 
-      @setLoadingState "unload"
-      @load(aReadyCallback)
-      that = @
-      @on "ready", ->
-        that.load(aReadyCallback)
-    final: (isFreeSubkeys)->
-      @freeSubkeys() if isFreeSubkeys isnt false
-      #deregister all hooks
-      unhooks = @unhooks
-      i = 0
-
-      while i < unhooks.length
-        unhooks[i]()
-        i++
-      @unhooks = []
-      for event, listener of @listeners
-        dbCore.removeListener event, listener
     parent: (options, callback)->
       return undefined unless @_pathArray.length
       if isFunction options
@@ -189,9 +189,9 @@ module.exports = (dbCore, DefaultReadStream = ReadStream, DefaultWriteStream = W
         vPath = @fullName if @_pathArray?
         if vPath? and vPath isnt resolvePath(aPath)
           cache.del(vPath)
-          @final()
+          @finalize()
           #@_pathArray = aPath
-          @init(aPath, @_options, aCallback)
+          @initialize(aPath, @_options, aCallback)
           return true
       aCallback new InvalidArgumentError('path argument is invalid') if aCallback
       false
