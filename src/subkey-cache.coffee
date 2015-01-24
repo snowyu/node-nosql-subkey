@@ -8,7 +8,12 @@ module.exports = class SubkeyCache
 
   constructor: -> super
   createSubkey: (keyPath, Subkey, options, callback) ->
-    if options && options.forceCreate == true
+    if options
+      forceCreate = options.forceCreate
+      addRef = options.addRef
+      delete options.forceCreate
+      delete options.addRef
+    if forceCreate is true
       result = new Subkey(options, callback)
     else
       result = @get keyPath
@@ -19,7 +24,7 @@ module.exports = class SubkeyCache
         @set keyPath, result, options
         result.on "destroyed", (item) =>
           @del keyPath
-      result.addRef() if !options || options.addRef != false
+      result.addRef() if addRef isnt false
     result
   subkeys: (aKeyPattern)->
     result = {}
