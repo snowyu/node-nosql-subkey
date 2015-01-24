@@ -1,15 +1,16 @@
-isFunction    = require("abstract-object/lib/util/isFunction")
-isString      = require("abstract-object/lib/util/isString")
-isObject      = require("abstract-object/lib/util/isObject")
-isArray       = require("abstract-object/lib/util/isArray")
-inherits      = require("abstract-object/lib/util/inherits")
-RefObject     = require("abstract-object/RefObject")
+isFunction      = require("abstract-object/lib/util/isFunction")
+isString        = require("abstract-object/lib/util/isString")
+isObject        = require("abstract-object/lib/util/isObject")
+isArray         = require("abstract-object/lib/util/isArray")
+inherits        = require("abstract-object/lib/util/inherits")
+isInheritedFrom = require("abstract-object/lib/util/isInheritedFrom")
+RefObject       = require("abstract-object/RefObject")
 try
-  WriteStream = require("nosql-stream/lib/write-stream")
-  ReadStream  = require('nosql-stream/lib/read-stream')
-codec         = require("./codec")
-path          = require("./path")
-errors        = require("./errors")
+  WriteStream   = require("nosql-stream/lib/write-stream")
+  ReadStream    = require('nosql-stream/lib/read-stream')
+codec           = require("./codec")
+path            = require("./path")
+errors          = require("./errors")
 
 normalizePath       = path.normalize
 normalizePathArray  = path.normalizeArray
@@ -59,13 +60,12 @@ module.exports = (dbCore, DefaultReadStream = ReadStream, DefaultWriteStream = W
   cache = dbCore.cache
   class Subkey
     inherits(Subkey, RefObject)
-    #dbCore = null
+
     constructor: (aKeyPath, aOptions, aCallback)->
       if isFunction aOptions
         aCallback = aOptions
         aOptions = {}
       if not (this instanceof Subkey)
-        
         vKeyPath = if aKeyPath then normalizePathArray getPathArray aKeyPath else []
         vSubkey = cache.createSubkey(toPath(vKeyPath), Subkey.bind(null, vKeyPath), aOptions, aCallback)
         return vSubkey
@@ -126,6 +126,7 @@ module.exports = (dbCore, DefaultReadStream = ReadStream, DefaultWriteStream = W
     init: (aKeyPath, aOptions, aReadyCallback)->
       super()
       #codec.applyEncoding(aOptions)
+      @db = dbCore
       @_options = aOptions
       aKeyPath = getPathArray(aKeyPath)
       aKeyPath = if aKeyPath then normalizePathArray(aKeyPath) else []
@@ -216,9 +217,9 @@ module.exports = (dbCore, DefaultReadStream = ReadStream, DefaultWriteStream = W
       dbCore.isOpen()
     pathAsArray: ->
       @_pathArray.slice()
-    prefix: deprecate["function"](->
-        @pathAsArray()
-      , "prefix(), use `pathAsArray()` instead, or use path() to return string path..")
+    prefix: deprecate["function"] (-> @pathAsArray())
+      , "prefix(), use `pathAsArray()` instead, or use path() to return string path.."
+
     path: (aPath, aOptions, aCallback) ->
       if aPath is `undefined`
         @fullName
@@ -242,9 +243,8 @@ module.exports = (dbCore, DefaultReadStream = ReadStream, DefaultWriteStream = W
         opts = {}
       return Subkey(vKeyPath, @mergeOpts(opts), cb)
     createPath: @::createSubkey
-    sublevel: deprecate["function"]((name, opts, cb) ->
-        @subkey name, opts, cb
-      , "sublevel(), use `subkey(name)` or `path(name)` instead.")
+    sublevel: deprecate["function"] ((name, opts, cb) ->@subkey name, opts, cb)
+      , "sublevel(), use `subkey(name)` or `path(name)` instead."
  
     freeSubkeys: (aKeyPattern) ->
       unless aKeyPattern
@@ -427,4 +427,3 @@ module.exports = (dbCore, DefaultReadStream = ReadStream, DefaultWriteStream = W
     createPathStream: @::pathStream
 
   Subkey
-
