@@ -54,13 +54,25 @@ LOADING_STATES =
   modified  : 4
   deleted   : 5
 
-module.exports = (aDbCore, aCreateReadStream = ReadStream, aCreateWriteStream = WriteStream) ->
+module.exports = (dbCore, DefaultReadStream = ReadStream, DefaultWriteStream = WriteStream) ->
 
-  cache = aDbCore.cache
+  cache = dbCore.cache
   class Subkey
     inherits(Subkey, RefObject)
+    #dbCore = null
+    constructor: (aKeyPath, aOptions, aCallback)->
+      if isFunction aOptions
+        aCallback = aOptions
+        aOptions = {}
+      if not (this instanceof Subkey)
+        
+        vKeyPath = if aKeyPath then normalizePathArray getPathArray aKeyPath else []
+        vSubkey = cache.createSubkey(toPath(vKeyPath), Subkey.bind(null, vKeyPath), aOptions, aCallback)
+        return vSubkey
+      super(aKeyPath, aOptions, aCallback)
+
     @::__defineGetter__ "sublevels", ->
-      deprecate "sublevels, all subkeys(sublevels) have cached on aDbCore.cache now."
+      deprecate "sublevels, all subkeys(sublevels) have cached on dbCore.cache now."
       r = cache.subkeys(toPath(@_pathArray, "*"))
       result = {}
       for k of r
@@ -76,7 +88,6 @@ module.exports = (aDbCore, aCreateReadStream = ReadStream, aCreateWriteStream = 
       if not vState? then "unload" else ["loading", "loaded", "dirtied", "modifying", "modified", "deleted"][vState]
     LOADING_STATES: LOADING_STATES
     Class: Subkey
-    db: aDbCore
     version: version
     setLoadingState: (value, emitted = false, param1, param2)->
       @_loadingState_ = LOADING_STATES[value]
@@ -97,7 +108,7 @@ module.exports = (aDbCore, aCreateReadStream = ReadStream, aCreateWriteStream = 
       else
         setImmediate aCallback.bind(@, null, @)
     loadAsync: (aReadyCallback)->
-      if @isUnload() and aDbCore.isOpen() is true
+      if @isUnload() and dbCore.isOpen() is true
         @setLoadingState "loading"
         @_loadAsync (err, result)=>
           if not err
@@ -108,7 +119,7 @@ module.exports = (aDbCore, aCreateReadStream = ReadStream, aCreateWriteStream = 
             @setLoadingState "unload"
             @dispatchError err, callback
       else
-        err = if aDbCore.isOpen() then new LoadingError('this is already loaded or loading...') else new NotOpenedError()
+        err = if dbCore.isOpen() then new LoadingError('this is already loaded or loading...') else new NotOpenedError()
         @dispatchError err, callback
     loadSync: -> if @_loadSync then @_loadSync() else true
     load: (aReadyCallback)-> if aReadyCallback then @loadAsync(aReadyCallback) else @loadSync()
@@ -127,7 +138,7 @@ module.exports = (aDbCore, aCreateReadStream = ReadStream, aCreateWriteStream = 
         closed: @emit.bind(@, "closed")
         error: @emit.bind(@, "error")
       for event, listener of @listeners
-        aDbCore.on event, listener 
+        dbCore.on event, listener 
       @setLoadingState "unload"
       @load(aReadyCallback)
       that = @
@@ -144,18 +155,7 @@ module.exports = (aDbCore, aCreateReadStream = ReadStream, aCreateWriteStream = 
         i++
       @unhooks = []
       for event, listener of @listeners
-        aDbCore.removeListener event, listener
-    constructor: (aKeyPath, aOptions, aCallback)->
-      if isFunction aOptions
-        aCallback = aOptions
-        aOptions = {}
-      if not (this instanceof Subkey)
-        vKeyPath = if aKeyPath then normalizePathArray getPathArray aKeyPath else []
-        vSubkey = cache.createSubkey(toPath(vKeyPath), Subkey.bind(null, vKeyPath), aOptions, aCallback)
-        delete aOptions.addRef if aOptions and aOptions.addRef?
-        return vSubkey
-
-      super(aKeyPath, aOptions, aCallback)
+        dbCore.removeListener event, listener
     parent: (options, callback)->
       return undefined unless @_pathArray.length
       if isFunction options
@@ -164,6 +164,8 @@ module.exports = (aDbCore, aCreateReadStream = ReadStream, aCreateWriteStream = 
       if options
         createIfMissing = options.createIfMissing
         latestParent    = options.latestParent
+        delete options.createIfMissing
+        delete options.latestParent
       options = @mergeOpts options
       vkeyPath = @_pathArray.slice(0, @_pathArray.length-1)
       p = toPath(vkeyPath)
@@ -211,7 +213,7 @@ module.exports = (aDbCore, aCreateReadStream = ReadStream, aCreateWriteStream = 
       o
     #the writeStream use db.isOpen and db.once('ready') to ready write stream.
     isOpen: ->
-      aDbCore.isOpen()
+      dbCore.isOpen()
     pathAsArray: ->
       @_pathArray.slice()
     prefix: deprecate["function"](->
@@ -266,7 +268,7 @@ module.exports = (aDbCore, aCreateReadStream = ReadStream, aCreateWriteStream = 
       opts = @mergeOpts(opts)
       assignDeprecatedPrefixOption opts
       opts.path = getPathArray opts.path, @_pathArray
-      aDbCore.putSync key, value, opts
+      dbCore.putSync key, value, opts
     putAsync: (key, value, opts, callback) ->
       if arguments.length is 0 or isFunction(key)
         callback = key
@@ -278,7 +280,7 @@ module.exports = (aDbCore, aCreateReadStream = ReadStream, aCreateWriteStream = 
       opts = @mergeOpts(opts)
       assignDeprecatedPrefixOption opts
       opts.path = getPathArray opts.path, @_pathArray
-      aDbCore.putAsync key, value, opts, callback
+      dbCore.putAsync key, value, opts, callback
     put: (key, value, opts, cb) ->
       if isFunction(key) or arguments.length is 0
         cb = key
@@ -302,7 +304,7 @@ module.exports = (aDbCore, aCreateReadStream = ReadStream, aCreateWriteStream = 
       opts = @mergeOpts(opts)
       assignDeprecatedPrefixOption opts
       opts.path = getPathArray opts.path, @_pathArray
-      aDbCore.delSync key, opts
+      dbCore.delSync key, opts
     delAsync: (key, opts, cb) ->
       if arguments.length is 0 or isFunction(key)
         cb = key
@@ -314,7 +316,7 @@ module.exports = (aDbCore, aCreateReadStream = ReadStream, aCreateWriteStream = 
       opts = @mergeOpts(opts)
       assignDeprecatedPrefixOption opts
       opts.path = getPathArray opts.path, @_pathArray
-      aDbCore.delAsync key, opts, cb
+      dbCore.delAsync key, opts, cb
     del: (key, opts, cb) ->
       if isFunction(key) or arguments.length is 0
         cb = key
@@ -327,7 +329,7 @@ module.exports = (aDbCore, aCreateReadStream = ReadStream, aCreateWriteStream = 
       opts = @mergeOpts(opts)
       assignDeprecatedPrefixOption opts
       opts.path = getPathArray opts.path, @_pathArray
-      aDbCore.batchSync ops, opts
+      dbCore.batchSync ops, opts
     batchAsync: (ops, opts, callback) ->
       if isFunction opts
         callback = opts
@@ -335,7 +337,7 @@ module.exports = (aDbCore, aCreateReadStream = ReadStream, aCreateWriteStream = 
       opts = @mergeOpts(opts)
       assignDeprecatedPrefixOption opts
       opts.path = getPathArray opts.path, @_pathArray
-      aDbCore.batchAsync ops, opts, callback
+      dbCore.batchAsync ops, opts, callback
     batch: (ops, opts, cb) ->
       if isFunction opts
         cb = opts
@@ -348,7 +350,7 @@ module.exports = (aDbCore, aCreateReadStream = ReadStream, aCreateWriteStream = 
       opts = @mergeOpts(opts)
       assignDeprecatedPrefixOption opts
       opts.path = getPathArray opts.path, @_pathArray
-      aDbCore.getSync key, opts
+      dbCore.getSync key, opts
     getAsync: (key, opts, cb)->
       if isFunction opts
         cb = opts
@@ -364,7 +366,7 @@ module.exports = (aDbCore, aCreateReadStream = ReadStream, aCreateWriteStream = 
       assignDeprecatedPrefixOption opts
       opts.path = getPathArray opts.path, @_pathArray
       that = @
-      aDbCore.getAsync key, opts, (err, value) ->
+      dbCore.getAsync key, opts, (err, value) ->
         return that.dispatchError(err, cb) if err
         cb.call that, null, value if cb
     get: (key, opts, cb) ->
@@ -380,19 +382,19 @@ module.exports = (aDbCore, aCreateReadStream = ReadStream, aCreateWriteStream = 
         key = "."
       if cb then @getAsync(key, opts, cb) else @getSync(key, opts)
     pre: (opType, key, hook) ->
-      @_addHook(key, hook, aDbCore.pre.bind(aDbCore, opType))
+      @_addHook(key, hook, dbCore.pre.bind(dbCore, opType))
 
     post: (opType, key, hook) ->
-      @_addHook(key, hook, aDbCore.post.bind(aDbCore, opType))
+      @_addHook(key, hook, dbCore.post.bind(dbCore, opType))
 
     readStream: (opts) ->
-      throw new NotImplementedError("please `npm install nosql-stream` to use streamable feature") unless aCreateReadStream
+      throw new NotImplementedError("please `npm install nosql-stream` to use streamable feature") unless DefaultReadStream
       opts = @mergeOpts(opts)
       assignDeprecatedPrefixOption opts
       
       #the opts.path could be relative
       opts.path = getPathArray(opts.path, @_pathArray) or @_pathArray
-      stream = aCreateReadStream(aDbCore, opts)
+      stream = DefaultReadStream(dbCore, opts)
       stream
     createReadStream: @::readStream
 
@@ -411,9 +413,9 @@ module.exports = (aDbCore, aCreateReadStream = ReadStream, aCreateWriteStream = 
     createKeyStream: @::keyStream
 
     writeStream: (opts) ->
-      throw new NotImplementedError("please `npm install nosql-stream` to use streamable feature") unless aCreateWriteStream
+      throw new NotImplementedError("please `npm install nosql-stream` to use streamable feature") unless DefaultWriteStream
       opts = @mergeOpts(opts)
-      new aCreateWriteStream(@, opts)
+      new DefaultWriteStream(@, opts)
     createWriteStream: @::writeStream
 
     pathStream: (opts) ->
