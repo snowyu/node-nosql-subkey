@@ -55,6 +55,14 @@ LOADING_STATES =
   modified  : 4
   deleted   : 5
 
+argumentsAre = (args, value, startIndex=0, endIndex) ->
+  return true unless args and args.length
+  endIndex = if endIndex? then Math.min(endIndex, args.length-1) else args.length-1
+  while startIndex <= endIndex
+    return false if args[startIndex] isnt value
+    ++startIndex
+  true
+
 module.exports = (dbCore, DefaultReadStream = ReadStream, DefaultWriteStream = WriteStream) ->
 
   cache = dbCore.cache
@@ -138,7 +146,9 @@ module.exports = (dbCore, DefaultReadStream = ReadStream, DefaultWriteStream = W
           result = @loadSync()
         catch e
           err = e
-        aCallback(err, result) if aCallback
+          @dispatchError err, aCallback
+          return
+        aCallback(null, result) if aCallback
       else
         setImmediate aCallback.bind(@, null, @)
     loadAsync: (aReadyCallback)->
@@ -255,64 +265,58 @@ module.exports = (dbCore, DefaultReadStream = ReadStream, DefaultWriteStream = W
       for k of vSubkeys
         vSubkeys[k].free()
       return
-    ###
-      put it self:
-        put(cb)
-        put(value, cb)
-    ###
     putSync: (key, value, opts) ->
-      if arguments.length is 0
-        cb = key
+      if argumentsAre(arguments, undefined, 1)
+        value = key
         key = "."
-        value = @value
       opts = @mergeOpts(opts)
       assignDeprecatedPrefixOption opts
       opts.path = getPathArray opts.path, @_pathArray
       dbCore.putSync key, value, opts
+    ###
+      put it self:
+        put(value, cb)
+    ###
     putAsync: (key, value, opts, callback) ->
-      if arguments.length is 0 or isFunction(key)
-        callback = key
+      if argumentsAre(arguments, undefined, 1) or isFunction(value)
+        callback = value
+        value = key
         key = "."
-        value = @value
       if isFunction opts
         callback = opts
-        opts = {}
+        opts = undefined
       opts = @mergeOpts(opts)
       assignDeprecatedPrefixOption opts
       opts.path = getPathArray opts.path, @_pathArray
       dbCore.putAsync key, value, opts, callback
     put: (key, value, opts, cb) ->
-      if isFunction(key) or arguments.length is 0
-        cb = key
-        key = "."
-        value = @value
-      else if isFunction value
+      if isFunction value
         cb = value
         value = key
         key = "."
       else if isFunction opts
         cb = opts
-        opts = {}
+        opts = undefined
       if cb then @putAsync key, value, opts, cb else @putSync key, value, opts
     ###TODO: del itself would destroy itself?  see: the post hook itself in init method.
       del itself:
       del(cb)
     ###
     delSync: (key, opts) ->
-      if arguments.length is 0
+      if argumentsAre(arguments, undefined)
         key = @path() #use absolute key path to delete alias key itself
       opts = @mergeOpts(opts)
       assignDeprecatedPrefixOption opts
       opts.path = getPathArray opts.path, @_pathArray
       dbCore.delSync key, opts
     delAsync: (key, opts, cb) ->
-      if arguments.length is 0 or isFunction(key)
+      if argumentsAre(arguments, undefined) or isFunction(key)
         cb = key
         key = @path() #use absolute key path to delete alias key itself
-        opts = {}
+        opts = undefined
       else if isFunction opts
         cb = opts
-        opts = {}
+        opts = undefined
       opts = @mergeOpts(opts)
       assignDeprecatedPrefixOption opts
       opts.path = getPathArray opts.path, @_pathArray
@@ -323,7 +327,7 @@ module.exports = (dbCore, DefaultReadStream = ReadStream, DefaultWriteStream = W
         key = @path() #use absolute key path to delete alias key itself
       else if isFunction opts
         cb = opts
-        opts = {}
+        opts = undefined
       if cb then @delAsync key, opts, cb else @delSync key, opts
     batchSync: (ops, opts) ->
       opts = @mergeOpts(opts)
@@ -333,7 +337,7 @@ module.exports = (dbCore, DefaultReadStream = ReadStream, DefaultWriteStream = W
     batchAsync: (ops, opts, callback) ->
       if isFunction opts
         callback = opts
-        opts = {}
+        opts = undefined
       opts = @mergeOpts(opts)
       assignDeprecatedPrefixOption opts
       opts.path = getPathArray opts.path, @_pathArray
@@ -341,10 +345,10 @@ module.exports = (dbCore, DefaultReadStream = ReadStream, DefaultWriteStream = W
     batch: (ops, opts, cb) ->
       if isFunction opts
         cb = opts
-        opts = {}
+        opts = undefined
       if cb then @batchAsync ops, opts, cb else @batchSync ops, opts
     getSync: (key, opts) ->
-      if isObject key
+      if argumentsAre(arguments, undefined)
         opts = key
         key = "."
       opts = @mergeOpts(opts)
@@ -354,13 +358,10 @@ module.exports = (dbCore, DefaultReadStream = ReadStream, DefaultWriteStream = W
     getAsync: (key, opts, cb)->
       if isFunction opts
         cb = opts
-        opts = {}
-      if isObject key
-        opts = key
-        key = "."
+        opts = undefined
       else if isFunction key
         cb = key
-        opts = {}
+        opts = undefined
         key = "."
       opts = @mergeOpts(opts)
       assignDeprecatedPrefixOption opts
@@ -372,13 +373,10 @@ module.exports = (dbCore, DefaultReadStream = ReadStream, DefaultWriteStream = W
     get: (key, opts, cb) ->
       if isFunction opts
         cb = opts
-        opts = {}
-      if isObject key
-        opts = key
-        key = "."
+        opts = undefined
       else if isFunction key
         cb = key
-        opts = {}
+        opts = undefined
         key = "."
       if cb then @getAsync(key, opts, cb) else @getSync(key, opts)
     pre: (opType, key, hook) ->

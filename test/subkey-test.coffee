@@ -22,6 +22,7 @@ InvalidArgumentError  = Errors.InvalidArgumentError
 PATH_SEP              = codec.PATH_SEP
 SUBKEY_SEP            = codec.SUBKEY_SEP
 _encodeKey            = codec._encodeKey
+encodeKey             = codec.encodeKey
 toPath                = path.join
 
 chai.use(sinonChai)
@@ -47,7 +48,7 @@ genData = (db, path = "op", opts, count = 10)->
 
 getEncodedKey = (db, key, options, parentPath) ->
   options = {} unless options
-  _encodeKey db.getPathArray(options, parentPath), key, db.keyEncoding(options), options
+  encodeKey db.getPathArray(options, parentPath), key, db.keyEncoding(options), options
 getEncodedValue = (db, value, options) ->
   encoding = db.valueEncoding options
   value = encoding.encode value if encoding
@@ -277,19 +278,33 @@ describe "Subkey", ->
   describe "put operation", ->
     before -> @subkey = @root.path 'myputParent'
     after -> @subkey.free()
-    it "should put key value via .putSync", ->
+    it "should put key value  .putSync", ->
       key = "myput"+Math.random()
       value = Math.random()
       @subkey.putSync key, value
       encodedKey = getEncodedKey @db, key, undefined, @subkey
       result = @db.data[encodedKey]
       result.should.be.equal getEncodedValue @db, value
-    it "should put key value via .putAsync", (done)->
+    it "should put key value  .putAsync", (done)->
       key = "myput"+Math.random()
       value = Math.random()
       @subkey.putAsync key, value, (err)=>
         should.not.exist err
         encodedKey = getEncodedKey @db, key, undefined, @subkey
+        result = @db.data[encodedKey]
+        result.should.be.equal getEncodedValue @db, value
+        done()
+    it "should put value to itself .putSync", ->
+      value = Math.random()
+      @subkey.putSync value
+      encodedKey = getEncodedKey @db, '.', undefined, @subkey
+      result = @db.data[encodedKey]
+      result.should.be.equal getEncodedValue @db, value
+    it "should put value to itself .putAsync", (done)->
+      value = Math.random()
+      @subkey.putAsync value, (err)=>
+        should.not.exist err
+        encodedKey = getEncodedKey @db, '.', undefined, @subkey
         result = @db.data[encodedKey]
         result.should.be.equal getEncodedValue @db, value
         done()
@@ -325,7 +340,7 @@ describe "Subkey", ->
         result = @db.data[encodedKey]
         result.should.be.equal getEncodedValue @db, value
         done()
-    it "should put another path key value via .putSync", ->
+    it "should put another path key value  .putSync", ->
       key = "myput"+Math.random()
       value = Math.random()
       @subkey.putSync key, value, {path: 'hahe'}
@@ -357,6 +372,21 @@ describe "Subkey", ->
         result = @db.data[encodedKey]
         result.should.be.equal getEncodedValue @db, value
         done()
+    it "should put value to itself .put", ->
+      value = Math.random()
+      key = @subkey.path("tkey")
+      key.put value
+      encodedKey = getEncodedKey @db, '.', undefined, key
+      result = @db.data[encodedKey]
+      result.should.be.equal getEncodedValue @db, value
+    it "should put value to itself .put async", (done)->
+      value = Math.random()
+      @subkey.put value, (err)=>
+        should.not.exist err
+        encodedKey = getEncodedKey @db, '.', undefined, @subkey
+        result = @db.data[encodedKey]
+        result.should.be.equal getEncodedValue @db, value
+        done()
   describe "get operation", ->
     before -> @subkey = @root.path 'myGetParent'
     after -> @subkey.free()
@@ -377,6 +407,24 @@ describe "Subkey", ->
       result = @db.data[encodedKey]
       result.should.be.equal getEncodedValue @db, value
       @subkey.getAsync key, (err, result)=>
+        should.not.exist err
+        result.should.be.equal value
+        done()
+    it "should get itself .getSync", ->
+      value = Math.random()
+      @subkey.putSync value
+      encodedKey = getEncodedKey @db, '.', undefined, @subkey
+      result = @db.data[encodedKey]
+      result.should.be.equal getEncodedValue @db, value
+      result = @subkey.getSync()
+      result.should.be.equal value
+    it "should get itself .getAsync", (done)->
+      value = Math.random()
+      @subkey.putSync value
+      encodedKey = getEncodedKey @db, '.', undefined, @subkey
+      result = @db.data[encodedKey]
+      result.should.be.equal getEncodedValue @db, value
+      @subkey.getAsync (err, result)=>
         should.not.exist err
         result.should.be.equal value
         done()
@@ -470,6 +518,24 @@ describe "Subkey", ->
         should.not.exist err
         result.should.be.equal value
         done()
+    it "should get itself .get", ->
+      value = Math.random()
+      @subkey.putSync value
+      encodedKey = getEncodedKey @db, '.', undefined, @subkey
+      result = @db.data[encodedKey]
+      result.should.be.equal getEncodedValue @db, value
+      result = @subkey.get()
+      result.should.be.equal value
+    it "should get itself .get async", (done)->
+      value = Math.random()
+      @subkey.putSync value
+      encodedKey = getEncodedKey @db, '.', undefined, @subkey
+      result = @db.data[encodedKey]
+      result.should.be.equal getEncodedValue @db, value
+      @subkey.get (err, result)=>
+        should.not.exist err
+        result.should.be.equal value
+        done()
   describe "del operation", ->
     before -> @subkey = @root.path 'myDelParent'
     after -> @subkey.free()
@@ -492,6 +558,27 @@ describe "Subkey", ->
       result = @db.data[encodedKey]
       result.should.be.equal getEncodedValue @db, value
       @subkey.delAsync key, (err, result)=>
+        should.not.exist err
+        result = @db.data[encodedKey]
+        should.not.exist result
+        done()
+    it "should del itself .delSync", ->
+      value = Math.random()
+      @subkey.putSync value
+      encodedKey = getEncodedKey @db, '.', undefined, @subkey
+      result = @db.data[encodedKey]
+      result.should.be.equal getEncodedValue @db, value
+      result = @subkey.delSync()
+      result.should.be.equal true
+      result = @db.data[encodedKey]
+      should.not.exist result
+    it "should del itself .delAsync", (done)->
+      value = Math.random()
+      @subkey.putSync value
+      encodedKey = getEncodedKey @db, '.', undefined, @subkey
+      result = @db.data[encodedKey]
+      result.should.be.equal getEncodedValue @db, value
+      @subkey.delAsync (err, result)=>
         should.not.exist err
         result = @db.data[encodedKey]
         should.not.exist result
@@ -584,6 +671,27 @@ describe "Subkey", ->
       result = @db.data[encodedKey]
       result.should.be.equal getEncodedValue @db, value
       @subkey.del key, (err, result)=>
+        should.not.exist err
+        result = @db.data[encodedKey]
+        should.not.exist result
+        done()
+    it "should del itself .del Sync", ->
+      value = Math.random()
+      @subkey.putSync value
+      encodedKey = getEncodedKey @db, '.', undefined, @subkey
+      result = @db.data[encodedKey]
+      result.should.be.equal getEncodedValue @db, value
+      result = @subkey.del()
+      result.should.be.equal true
+      result = @db.data[encodedKey]
+      should.not.exist result
+    it "should del itself .del Async", (done)->
+      value = Math.random()
+      @subkey.putSync value
+      encodedKey = getEncodedKey @db, '.', undefined, @subkey
+      result = @db.data[encodedKey]
+      result.should.be.equal getEncodedValue @db, value
+      @subkey.del (err, result)=>
         should.not.exist err
         result = @db.data[encodedKey]
         should.not.exist result
