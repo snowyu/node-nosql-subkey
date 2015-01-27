@@ -23,7 +23,7 @@ NotOpenedError      = errors.NotOpenedError
 LoadingError        = errors.LoadingError
 setImmediate        = global.setImmediate or process.nextTick
 
-deprecate = require("depd")("level-subkey")
+deprecate = require("depd")("nosql-subkey")
 deprecate.assignProperty = (object, deprecatedProp, currentProp) ->
   if object[deprecatedProp]
     this deprecatedProp + " property, use `" + currentProp + "` instead."
@@ -384,6 +384,54 @@ module.exports = (dbCore, DefaultReadStream = ReadStream, DefaultWriteStream = W
 
     post: (opType, key, hook) ->
       @_addHook(key, hook, dbCore.post.bind(dbCore, opType))
+
+    prepareFindOptions: (aOptions)->
+      aOptions = @mergeOpts(aOptions)
+      assignDeprecatedPrefixOption aOptions
+      makeData = aOptions.makeData
+
+      if not aOptions.makeData
+        aOptions.makeData = if aOptions.keys isnt false and aOptions.values isnt false then (key, value) ->
+            key: key
+            value: value
+        else if aOptions.values is false then (key) -> key
+        else if aOptions.keys   is false then (_, value) -> value
+        else ->
+
+      #the aOptions.path could be relative
+      aOptions.path = getPathArray(aOptions.path, @_pathArray) or @_pathArray
+      aOptions
+    findSync: (aOptions)->
+      aOptions = @prepareFindOptions aOptions
+      it = dbCore.iterator(aOptions)
+      result = []
+      item = it.nextSync()
+      while item isnt false
+        result.push aMakeData(item.key, item.value)
+        item = it.nextSync()
+      result
+    findAsync: (aOptions, callback)->
+      if isFunction aOptions
+        callback = aOptions
+        aOptions = undefined
+      throw new InvalidArgumentError('callback argument required.') unless callback
+      aOptions = @prepareFindOptions aOptions
+      it = dbCore.iterator(aOptions)
+      result = []
+      nextOne = ->
+        it.next (err, key, value)->
+          if err
+            err = null if err.notFound()
+            return callback err, result
+          return callback err, result if err is undefined and key is undefined and value is undefined
+          result.push makeData(key, value)
+          nextOne()
+      nextOne()
+    find: (aOptions, callback)->
+      if isFunction aOptions
+        callback = aOptions
+        aOptions = undefined
+      if callback then @findAsync aOptions, callback else @findSync aOptions
 
     readStream: (opts) ->
       throw new NotImplementedError("please `npm install nosql-stream` to use streamable feature") unless DefaultReadStream
