@@ -29,6 +29,17 @@ chai.use(sinonChai)
 
 FakeDB = SubkeyNoSQL(FakeDB)
 
+genOps = (separator='', count=10)->
+  for i in [1..count]
+    key: separator+'key'+Math.random()
+    value: Math.random()
+testOps = (ops, options) ->
+  #console.log 'data', @db.data
+  for op in ops
+    encodedKey = getEncodedKey @db, op.key, options, @subkey
+    result = @db.data[encodedKey]
+    result.should.be.equal getEncodedValue @db, op.value
+
 genData = (db, path = "op", opts, count = 10)->
   data = for i in [1..count]
     key: myKey: Math.random()
@@ -699,16 +710,6 @@ describe "Subkey", ->
   describe "batch operation", ->
     before -> @subkey = @root.path 'myBatchParent'
     after -> @subkey.free()
-    genOps = (separator='', count=10)->
-      for i in [1..count]
-        key: separator+'key'+Math.random()
-        value: Math.random()
-    testOps = (ops, options) ->
-      #console.log 'data', @db.data
-      for op in ops
-        encodedKey = getEncodedKey @db, op.key, options, @subkey
-        result = @db.data[encodedKey]
-        result.should.be.equal getEncodedValue @db, op.value
     it ".batchSync", ->
       ops = genOps()
       @subkey.batchSync ops
@@ -759,5 +760,151 @@ describe "Subkey", ->
         should.not.exist err
         testOps.call @, ops, path: 'hahe'
         done()
+  describe "find operation", ->
+    before -> @subkey = @root.path 'myFindParent'
+    after -> @subkey.free()
 
-
+    it "should find (.findSync)", ->
+      ops = genOps()
+      @subkey.batchSync ops
+      testOps.call @, ops
+      ops.sort (a,b)->
+        a = a.key
+        b = b.key
+        return 1 if a > b
+        return -1 if a < b
+        return 0
+      result = @subkey.findSync()
+      result.should.have.length ops.length
+      for item, i in ops
+        result[i].should.have.property 'key', item.key
+        result[i].should.have.property 'value', item.value
+      ops = ops.filter (i)->i.type='del'
+      @subkey.batchSync ops
+    it "should find attributes (.findSync)", ->
+      ops = genOps('.')
+      @subkey.batchSync ops
+      testOps.call @, ops
+      ops.sort (a,b)->
+        a = a.key
+        b = b.key
+        return 1 if a > b
+        return -1 if a < b
+        return 0
+      result = @subkey.findSync separator:'.'
+      result.should.have.length ops.length
+      for item, i in ops
+        result[i].should.have.property 'key', item.key
+        result[i].should.have.property 'value', item.value
+      ops = ops.filter (i)->i.type='del'
+      @subkey.batchSync ops
+    it "should find (.findAsync)", (done)->
+      ops = genOps()
+      @subkey.batchSync ops
+      testOps.call @, ops
+      ops.sort (a,b)->
+        a = a.key
+        b = b.key
+        return 1 if a > b
+        return -1 if a < b
+        return 0
+      @subkey.findAsync (err, result)=>
+        should.not.exist err
+        result.should.have.length ops.length
+        for item, i in ops
+          result[i].should.have.property 'key', item.key
+          result[i].should.have.property 'value', item.value
+        ops = ops.filter (i)->i.type='del'
+        @subkey.batchSync ops
+        done()
+    it "should find attributes (.findAsync)", (done)->
+      ops = genOps('.')
+      @subkey.batchSync ops
+      testOps.call @, ops
+      ops.sort (a,b)->
+        a = a.key
+        b = b.key
+        return 1 if a > b
+        return -1 if a < b
+        return 0
+      @subkey.findAsync separator:'.', (err, result)=>
+        should.not.exist err
+        result.should.have.length ops.length
+        for item, i in ops
+          result[i].should.have.property 'key', item.key
+          result[i].should.have.property 'value', item.value
+        ops = ops.filter (i)->i.type='del'
+        @subkey.batchSync ops
+        done()
+    it "should find (.find) Sync", ->
+      ops = genOps()
+      @subkey.batchSync ops
+      testOps.call @, ops
+      ops.sort (a,b)->
+        a = a.key
+        b = b.key
+        return 1 if a > b
+        return -1 if a < b
+        return 0
+      result = @subkey.find()
+      result.should.have.length ops.length
+      for item, i in ops
+        result[i].should.have.property 'key', item.key
+        result[i].should.have.property 'value', item.value
+      ops = ops.filter (i)->i.type='del'
+      @subkey.batchSync ops
+    it "should find attributes (.find) Sync", ->
+      ops = genOps('.')
+      @subkey.batchSync ops
+      testOps.call @, ops
+      ops.sort (a,b)->
+        a = a.key
+        b = b.key
+        return 1 if a > b
+        return -1 if a < b
+        return 0
+      result = @subkey.find separator:'.'
+      result.should.have.length ops.length
+      for item, i in ops
+        result[i].should.have.property 'key', item.key
+        result[i].should.have.property 'value', item.value
+      ops = ops.filter (i)->i.type='del'
+      @subkey.batchSync ops
+    it "should find (.find) Async", (done)->
+      ops = genOps()
+      @subkey.batchSync ops
+      testOps.call @, ops
+      ops.sort (a,b)->
+        a = a.key
+        b = b.key
+        return 1 if a > b
+        return -1 if a < b
+        return 0
+      @subkey.find (err, result)=>
+        should.not.exist err
+        result.should.have.length ops.length
+        for item, i in ops
+          result[i].should.have.property 'key', item.key
+          result[i].should.have.property 'value', item.value
+        ops = ops.filter (i)->i.type='del'
+        @subkey.batchSync ops
+        done()
+    it "should find attributes (.find) Async", (done)->
+      ops = genOps('.')
+      @subkey.batchSync ops
+      testOps.call @, ops
+      ops.sort (a,b)->
+        a = a.key
+        b = b.key
+        return 1 if a > b
+        return -1 if a < b
+        return 0
+      @subkey.find separator:'.', (err, result)=>
+        should.not.exist err
+        result.should.have.length ops.length
+        for item, i in ops
+          result[i].should.have.property 'key', item.key
+          result[i].should.have.property 'value', item.value
+        ops = ops.filter (i)->i.type='del'
+        @subkey.batchSync ops
+        done()

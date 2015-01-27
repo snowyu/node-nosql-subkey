@@ -403,11 +403,12 @@ module.exports = (dbCore, DefaultReadStream = ReadStream, DefaultWriteStream = W
       aOptions
     findSync: (aOptions)->
       aOptions = @prepareFindOptions aOptions
+      makeData = aOptions.makeData
       it = dbCore.iterator(aOptions)
       result = []
       item = it.nextSync()
       while item isnt false
-        result.push aMakeData(item.key, item.value)
+        result.push makeData(item.key, item.value)
         item = it.nextSync()
       result
     findAsync: (aOptions, callback)->
@@ -416,6 +417,7 @@ module.exports = (dbCore, DefaultReadStream = ReadStream, DefaultWriteStream = W
         aOptions = undefined
       throw new InvalidArgumentError('callback argument required.') unless callback
       aOptions = @prepareFindOptions aOptions
+      makeData = aOptions.makeData
       it = dbCore.iterator(aOptions)
       result = []
       nextOne = ->

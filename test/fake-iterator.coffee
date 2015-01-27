@@ -21,17 +21,21 @@ module.exports =  class FakeIterator
     @start      = 0
     @notReverse = @options.reverse isnt true
     @end        = @keys.length
+    @limit      = @options.limit unless isNaN @options.limit
+    @end        = @limit if @limit > 0 and @limit < @end
     if @options.lt
       index = getIndexLessThan(@keys, @options.lt)
       index = @keys.length if index < 0
-      index--
       if @notReverse
         @end = index
       else
         @start = index
     else if @options.lte
       index = getIndexLessThan(@keys, @options.lte)
-      index = @keys.length if index < 0
+      if index < 0
+        index = @keys.length
+      else
+        index++
       if @notReverse
         @end = index
       else
