@@ -450,6 +450,18 @@ describe "Subkey", ->
       result.should.be.equal value
       result = @subkey.getSync key.slice(1), separator:'.'
       result.should.be.equal value
+    it "should get attribute with path .getSync", ->
+      key = ".myput"+Math.random()
+      path = "mypath"
+      value = Math.random()
+      @subkey.putSync key, value, path:path
+      encodedKey = getEncodedKey @db, key, path:path, @subkey
+      result = @db.data[encodedKey]
+      result.should.be.equal getEncodedValue @db, value
+      result = @subkey.getSync key, path: path
+      result.should.be.equal value
+      result = @subkey.getSync key.slice(1), separator:'.', path:path
+      result.should.be.equal value
     it "should get attribute via separator .getSync", ->
       key = "myput"+Math.random()
       value = Math.random()
@@ -472,6 +484,21 @@ describe "Subkey", ->
         should.not.exist err
         result.should.be.equal value
         @subkey.getAsync key.slice(1), separator:'.', (err, result)=>
+          should.not.exist err
+          result.should.be.equal value
+          done()
+    it "should get attribute with path .getAsync", (done)->
+      key = ".myput"+Math.random()
+      value = Math.random()
+      path = "mypath"
+      @subkey.putSync key, value, path:path
+      encodedKey = getEncodedKey @db, key, path:path, @subkey
+      result = @db.data[encodedKey]
+      result.should.be.equal getEncodedValue @db, value
+      @subkey.getAsync key, path:path, (err, result)=>
+        should.not.exist err
+        result.should.be.equal value
+        @subkey.getAsync key.slice(1), separator:'.', path:path, (err, result)=>
           should.not.exist err
           result.should.be.equal value
           done()
@@ -529,6 +556,33 @@ describe "Subkey", ->
         should.not.exist err
         result.should.be.equal value
         done()
+    it "should get attribute with path .get sync", ->
+      key = ".myput"+Math.random()
+      path = "mypath"
+      value = Math.random()
+      @subkey.putSync key, value, path:path
+      encodedKey = getEncodedKey @db, key, path:path, @subkey
+      result = @db.data[encodedKey]
+      result.should.be.equal getEncodedValue @db, value
+      result = @subkey.get key, path: path
+      result.should.be.equal value
+      result = @subkey.get key.slice(1), separator:'.', path:path
+      result.should.be.equal value
+    it "should get attribute with path .get async", (done)->
+      key = ".myput"+Math.random()
+      value = Math.random()
+      path = "mypath"
+      @subkey.putSync key, value, path:path
+      encodedKey = getEncodedKey @db, key, path:path, @subkey
+      result = @db.data[encodedKey]
+      result.should.be.equal getEncodedValue @db, value
+      @subkey.get key, path:path, (err, result)=>
+        should.not.exist err
+        result.should.be.equal value
+        @subkey.get key.slice(1), separator:'.', path:path, (err, result)=>
+          should.not.exist err
+          result.should.be.equal value
+          done()
     it "should get itself .get", ->
       value = Math.random()
       @subkey.putSync value
