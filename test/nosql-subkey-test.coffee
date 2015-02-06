@@ -505,8 +505,7 @@ describe "SubkeyNoSQL", ->
             iterator.next (err, key, value)->
               overCallbackCount++
               overCallbackCount.should.be.equal 1
-              should.exist err
-              err.notFound().should.be.true
+              should.not.exist err
               should.not.exist key
               should.not.exist value
               done()

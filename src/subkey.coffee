@@ -422,10 +422,8 @@ module.exports = (dbCore, DefaultReadStream = ReadStream, DefaultWriteStream = W
       result = []
       nextOne = ->
         it.next (err, key, value)->
-          if err
-            err = null if err.notFound()
-            return callback err, result
-          return callback err, result if err is undefined and key is undefined and value is undefined
+          return callback err, result if err
+          return callback err, result if !arguments.length
           result.push makeData(key, value)
           nextOne()
       nextOne()
