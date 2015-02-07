@@ -94,13 +94,15 @@ module.exports = (dbCore, DefaultReadStream = ReadStream, DefaultWriteStream = W
         closed: @emit.bind(@, "closed")
         error: @emit.bind(@, "error")
       for event, listener of @listeners
-        dbCore.on event, listener 
+        dbCore.on event, listener
+      @_initialize(aKeyPath, aOptions) if @_initialize
       @setLoadingState "unload"
       @load(aReadyCallback)
       that = @
       @on "ready", ->
         that.load(aReadyCallback)
     finalize: (isFreeSubkeys)->
+      @_finalize(isFreeSubkeys) if @_finalize
       @freeSubkeys() if isFreeSubkeys isnt false
       #deregister all hooks
       unhooks = @unhooks
@@ -255,7 +257,7 @@ module.exports = (dbCore, DefaultReadStream = ReadStream, DefaultWriteStream = W
     createPath: @::createSubkey
     sublevel: deprecate["function"] ((name, opts, cb) ->@subkey name, opts, cb)
       , "sublevel(), use `subkey(name)` or `path(name)` instead."
- 
+
     freeSubkeys: (aKeyPattern) ->
       unless aKeyPattern
         aKeyPattern = toPath @_pathArray, "*"
@@ -437,7 +439,7 @@ module.exports = (dbCore, DefaultReadStream = ReadStream, DefaultWriteStream = W
       throw new NotImplementedError("please `npm install nosql-stream` to use streamable feature") unless DefaultReadStream
       opts = @mergeOpts(opts)
       assignDeprecatedPrefixOption opts
-      
+
       #the opts.path could be relative
       opts.path = getPathArray(opts.path, @_pathArray) or @_pathArray
       stream = DefaultReadStream(dbCore, opts)
