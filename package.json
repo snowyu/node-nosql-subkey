@@ -1,12 +1,21 @@
 {
   "name": "nosql-subkey",
   "description": "Add the subkey/sublevel feature to abstract-nosql database",
-  "version": "0.8.6",
+  "version": "0.8.7",
   "homepage": "https://github.com/snowyu/node-nosql-subkey",
   "repository": {
     "type": "git",
     "url": "git://github.com/snowyu/node-nosql-subkey.git"
   },
+  "files": [
+    "README.md",
+    "LICENSE-MIT",
+    "*.js",
+    "*.coffee",
+    "test",
+    "src",
+    "lib"
+  ],
   "keywords": [
     "hierarchy",
     "partition",
