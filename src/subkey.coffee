@@ -63,6 +63,8 @@ argumentsAre = (args, value, startIndex=0, endIndex) ->
     ++startIndex
   true
 
+defineProperty = Object.defineProperty
+
 module.exports = (dbCore, DefaultReadStream = ReadStream, DefaultWriteStream = WriteStream) ->
 
   cache = dbCore.cache
@@ -115,21 +117,25 @@ module.exports = (dbCore, DefaultReadStream = ReadStream, DefaultWriteStream = W
       for event, listener of @listeners
         dbCore.removeListener event, listener
 
-    @::__defineGetter__ "sublevels", ->
-      deprecate "sublevels, all subkeys(sublevels) have cached on dbCore.cache now."
-      r = cache.subkeys(toPath(@_pathArray, "*"))
-      result = {}
-      for k of r
-        result[path.basename(k)] = r[k]
-      result
-    @::__defineGetter__ "name", ->
-      l = @_pathArray.length
-      if l > 0 then @_pathArray[l-1] else PATH_SEP
-    @::__defineGetter__ "fullName", ->
-      PATH_SEP + @_pathArray.join(PATH_SEP)
-    @::__defineGetter__ "loadingState", ->
-      vState = @_loadingState_
-      if not vState? then "unload" else ["loading", "loaded", "dirtied", "modifying", "modified", "deleted"][vState]
+    defineProperty @::, "sublevels", 
+      get: ->
+        deprecate "sublevels, all subkeys(sublevels) have cached on dbCore.cache now."
+        r = cache.subkeys(toPath(@_pathArray, "*"))
+        result = {}
+        for k of r
+          result[path.basename(k)] = r[k]
+        result
+    defineProperty @::, "name",
+      get: ->
+        l = @_pathArray.length
+        if l > 0 then @_pathArray[l-1] else PATH_SEP
+    defineProperty @::, "fullName",
+      get: ->
+        PATH_SEP + @_pathArray.join(PATH_SEP)
+    defineProperty @::, "loadingState",
+      get: ->
+        vState = @_loadingState_
+        if not vState? then "unload" else ["loading", "loaded", "dirtied", "modifying", "modified", "deleted"][vState]
     LOADING_STATES: LOADING_STATES
     Class: Subkey
     version: version

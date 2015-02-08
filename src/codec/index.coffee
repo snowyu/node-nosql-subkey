@@ -17,6 +17,8 @@ UNSAFE_CHARS =  SEP.UNSAFE_CHARS
 PATH_SEP = SUBKEY_SEPS[0][0]
 SUBKEY_SEP = SUBKEY_SEPS[1][0]
 
+defineProperty = Object.defineProperty
+
 module.exports = class SubkeyCodec
   #register SubkeyCodec
   GET_OP  = consts.GET_OP
@@ -26,18 +28,18 @@ module.exports = class SubkeyCodec
   HALT_OP = consts.HALT_OP
   SKIP_OP = consts.SKIP_OP
 
-  @__defineGetter__ "PATH_SEP", ->
-    PATH_SEP
-  @__defineGetter__ "SUBKEY_SEP", ->
-    SUBKEY_SEP
-  @__defineGetter__ "SUBKEY_SEPS", ->
-    SUBKEY_SEPS
-  @__defineSetter__ "SUBKEY_SEPS", (value) ->
-    SEP.SUBKEY_SEPS = value
-    SUBKEY_SEPS = SEP.SUBKEY_SEPS
-    UNSAFE_CHARS =  SEP.UNSAFE_CHARS
-    PATH_SEP = SUBKEY_SEPS[0][0]
-    SUBKEY_SEP = SUBKEY_SEPS[1][0]
+  defineProperty @, "PATH_SEP",
+    get:->PATH_SEP
+  defineProperty @, "SUBKEY_SEP",
+    get:->SUBKEY_SEP
+  defineProperty @, "SUBKEY_SEPS",
+    get:->SUBKEY_SEPS
+    set:(value)->
+      SEP.SUBKEY_SEPS = value
+      SUBKEY_SEPS = SEP.SUBKEY_SEPS
+      UNSAFE_CHARS =  SEP.UNSAFE_CHARS
+      PATH_SEP = SUBKEY_SEPS[0][0]
+      SUBKEY_SEP = SUBKEY_SEPS[1][0]
 
   # apply parent's encodings to a op
   addEncodings = (op, aParent) ->
