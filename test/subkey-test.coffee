@@ -7,12 +7,11 @@ assert          = chai.assert
 SubkeyNoSQL     = require '../src/nosql-subkey'
 #AbstractNoSQL   = require 'abstract-nosql'
 Errors          = require 'abstract-object/Error'
-util            = require 'abstract-object/util'
 Codec           = require 'buffer-codec'
 EncodingIterator= require 'encoding-iterator'
-inherits        = require 'abstract-object/lib/util/inherits'
-isInheritedFrom = require 'abstract-object/lib/util/isInheritedFrom'
-isObject        = require 'abstract-object/lib/util/isObject'
+inherits        = require 'inherits-ex/lib/inherits'
+isInheritedFrom = require 'inherits-ex/lib/isInheritedFrom'
+isObject        = require 'util-ex/lib/is/type/object'
 FakeDB          = require './fake-nosql'
 codec           = require '../src/codec'
 path            = require '../src/path'
@@ -92,6 +91,9 @@ describe "Subkey", ->
     result = @db.cache.get @root.fullName
     result.should.be.equal @root
     result.should.be.equal @db.root()
+  it "should not enumerable buildin properties", ->
+    keys = Object.keys @root
+    keys.should.have.length 0
   describe ".parent()", ->
     it "should be null for root's parent", ->
       should.not.exist @root.parent()

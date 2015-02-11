@@ -1,9 +1,10 @@
-isFunction      = require("abstract-object/lib/util/isFunction")
-isString        = require("abstract-object/lib/util/isString")
-isObject        = require("abstract-object/lib/util/isObject")
-isArray         = require("abstract-object/lib/util/isArray")
-inherits        = require("abstract-object/lib/util/inherits")
-isInheritedFrom = require("abstract-object/lib/util/isInheritedFrom")
+defineProperty  = require("util-ex/lib/defineProperty")
+isFunction      = require("util-ex/lib/is/type/function")
+isString        = require("util-ex/lib/is/type/string")
+isObject        = require("util-ex/lib/is/type/object")
+isArray         = require("util-ex/lib/is/type/array")
+inherits        = require("inherits-ex/lib/inherits")
+isInheritedFrom = require("inherits-ex/lib/isInheritedFrom")
 RefObject       = require("abstract-object/RefObject")
 try
   WriteStream   = require("nosql-stream/lib/write-stream")
@@ -63,8 +64,6 @@ argumentsAre = (args, value, startIndex=0, endIndex) ->
     ++startIndex
   true
 
-defineProperty = Object.defineProperty
-
 module.exports = (dbCore, DefaultReadStream = ReadStream, DefaultWriteStream = WriteStream) ->
 
   cache = dbCore.cache
@@ -83,14 +82,20 @@ module.exports = (dbCore, DefaultReadStream = ReadStream, DefaultWriteStream = W
     initialize: (aKeyPath, aOptions, aReadyCallback)->
       super()
       #codec.applyEncoding(aOptions)
-      @db = dbCore
-      @_options = aOptions
+      #@db = dbCore
+      defineProperty @, 'db', dbCore
+      #@_options = aOptions
+      defineProperty @, '_options', aOptions
       aKeyPath = getPathArray(aKeyPath)
       aKeyPath = if aKeyPath then normalizePathArray(aKeyPath) else []
-      @_pathArray = aKeyPath
-      @self = @
-      @unhooks = []
-      @listeners =
+      #@_pathArray = aKeyPath
+      defineProperty @, '_pathArray', aKeyPath
+      #@self = @
+      defineProperty @, 'self', @, writable: false
+      #@unhooks = []
+      defineProperty @, 'unhooks', []
+      #@listeners =
+      defineProperty @, 'listeners',
         ready: @emit.bind(@, "ready")
         closing: @emit.bind(@, "closing")
         closed: @emit.bind(@, "closed")
@@ -98,6 +103,7 @@ module.exports = (dbCore, DefaultReadStream = ReadStream, DefaultWriteStream = W
       for event, listener of @listeners
         dbCore.on event, listener
       @_initialize(aKeyPath, aOptions) if @_initialize
+      defineProperty @, '_loadingState_', null
       @setLoadingState "unload"
       @load(aReadyCallback)
       that = @
@@ -117,7 +123,7 @@ module.exports = (dbCore, DefaultReadStream = ReadStream, DefaultWriteStream = W
       for event, listener of @listeners
         dbCore.removeListener event, listener
 
-    defineProperty @::, "sublevels", 
+    defineProperty @::, "sublevels", undefined,
       get: ->
         deprecate "sublevels, all subkeys(sublevels) have cached on dbCore.cache now."
         r = cache.subkeys(toPath(@_pathArray, "*"))
@@ -125,14 +131,14 @@ module.exports = (dbCore, DefaultReadStream = ReadStream, DefaultWriteStream = W
         for k of r
           result[path.basename(k)] = r[k]
         result
-    defineProperty @::, "name",
+    defineProperty @::, "name", undefined,
       get: ->
         l = @_pathArray.length
         if l > 0 then @_pathArray[l-1] else PATH_SEP
-    defineProperty @::, "fullName",
+    defineProperty @::, "fullName", undefined,
       get: ->
         PATH_SEP + @_pathArray.join(PATH_SEP)
-    defineProperty @::, "loadingState",
+    defineProperty @::, "loadingState", undefined,
       get: ->
         vState = @_loadingState_
         if not vState? then "unload" else ["loading", "loaded", "dirtied", "modifying", "modified", "deleted"][vState]

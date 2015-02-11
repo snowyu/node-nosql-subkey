@@ -1,6 +1,6 @@
 SecondaryCache        = require("secondary-cache")
 minimatch             = require('minimatch')
-inherits              = require("abstract-object/lib/util/inherits")
+inherits              = require("inherits-ex/lib/inherits")
 setImmediate          = setImmediate || process.nextTick
 
 module.exports = class SubkeyCache

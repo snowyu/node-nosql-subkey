@@ -31,14 +31,16 @@
     "json"
   ],
   "dependencies": {
-    "abstract-object": "~1.8.1",
+    "abstract-object": "~1.9.1",
     "buffer-codec": "~1.6.0",
     "depd": "~1.0.0",
     "encoding-iterator": "~1.0.3",
+    "inherits-ex": "~1.0.6",
     "ltgt": "~2.0.0",
     "minimatch": "~2.0.1",
-    "nosql-encoding": "~1.2.3",
-    "secondary-cache": "~1.1.5"
+    "nosql-encoding": "~1.2.4",
+    "secondary-cache": "~1.1.6",
+    "util-ex": "~0.2.5"
   },
   "devDependencies": {
     "chai": "~1.10.0",
@@ -51,7 +53,7 @@
     "grunt-newer": "~0.8.0",
     "grunt-release": "~0.9.0",
     "mocha": "~2.1.0",
-    "pre-commit": "~0.0.11",
+    "pre-commit": "~1.0.2",
     "rimraf": "~2.2.8",
     "shasum": "1.0.0",
     "sinon": "~1.12.2",
