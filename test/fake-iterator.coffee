@@ -1,6 +1,6 @@
 sinon             = require 'sinon'
 EncodingIterator  = require 'encoding-iterator'
-inherits          = require 'abstract-object/lib/util/inherits'
+inherits          = require 'inherits-ex'
 
 module.exports =  class FakeIterator
   inherits FakeIterator, EncodingIterator

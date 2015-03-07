@@ -5,7 +5,7 @@ isObject        = require("util-ex/lib/is/type/object")
 isArray         = require("util-ex/lib/is/type/array")
 inherits        = require("inherits-ex/lib/inherits")
 isInheritedFrom = require("inherits-ex/lib/isInheritedFrom")
-RefObject       = require("abstract-object/RefObject")
+RefObject       = require("ref-object/eventable-ref-object")
 try
   WriteStream   = require("nosql-stream/lib/write-stream")
   ReadStream    = require('nosql-stream/lib/read-stream')

@@ -1,7 +1,7 @@
 # Copyright (c) 2015 Riceball LEE, MIT License
 #xtend                 = require("xtend")
 #util                  = require("abstract-object/lib/util")
-Errors                = require("abstract-object/Error")
+Errors                = require("abstract-error")
 EncodingNoSQL         = require("nosql-encoding")
 AbstractNoSQL         = EncodingNoSQL.super_
 #AbstractNoSQL         = require("abstract-nosql")
@@ -407,4 +407,8 @@ module.exports = class SubkeyNoSQL
 
   root: (aOptions, aReadyCallback)->
     @subkey(null, aOptions, aReadyCallback)
+
+  #TODO: separate the eventable ability from SubkeyNoSQL
+  eventable = require('events-ex/ability')
+  eventable SubkeyNoSQL
 

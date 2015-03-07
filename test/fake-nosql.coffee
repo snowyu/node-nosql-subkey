@@ -1,8 +1,8 @@
 EncodingNoSQL   = require 'nosql-encoding'
 sinon           = require 'sinon'
-inherits        = require 'abstract-object/lib/util/inherits'
-isObject        = require 'abstract-object/lib/util/isObject'
-errors          = require 'abstract-object/Error'
+inherits        = require 'inherits-ex'
+isObject        = require 'util-ex/lib/is/type/object'
+errors          = require 'abstract-error'
 FakeIterator    = require './fake-iterator'
 
 
