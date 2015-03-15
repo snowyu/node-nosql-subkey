@@ -179,7 +179,16 @@ module.exports = (dbCore, DefaultReadStream = ReadStream, DefaultWriteStream = W
       else
         err = if dbCore.isOpen() then new LoadingError('this is already loaded or loading...') else new NotOpenedError()
         @dispatchError err, callback
-    loadSync: -> if @_loadSync then @_loadSync() else true
+    loadSync: ->
+      result = @isUnload() and dbCore.isOpen() is true
+      if result 
+        @setLoadingState "loading"
+        result = if @_loadSync then @_loadSync() else true
+        @setLoadingState "loaded"
+      else
+        err = if dbCore.isOpen() then new LoadingError('this is already loaded or loading...') else new NotOpenedError()
+        throw err
+      result
     load: (aReadyCallback)-> if aReadyCallback then @loadAsync(aReadyCallback) else @loadSync()
     parent: (options, callback)->
       return undefined unless @_pathArray.length
