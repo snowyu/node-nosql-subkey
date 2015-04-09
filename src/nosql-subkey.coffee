@@ -89,7 +89,7 @@ module.exports = class SubkeyNoSQL
     super
   ###
     first check preHooks if operationType
-    return falsse if prehooks disallow this operation 
+    return falsse if prehooks disallow this operation
     or return encoded string.
   ###
   encodeKey: (aPathArray, aKey, op, operationType)->
@@ -100,7 +100,7 @@ module.exports = class SubkeyNoSQL
     if result is SKIP_OP
       #skip path wrapped key, just encode aKey directly.
       aKey = keyEncoding.encode aKey if keyEncoding
-      return aKey 
+      return aKey
     _encodeKey op.path, op.key, keyEncoding, op
   decodeKey: (key, options)->
     keyEncoding = @keyEncoding options
@@ -191,7 +191,7 @@ module.exports = class SubkeyNoSQL
       k = @encodeKey path, k, vOptions, GET_OP
       vOptions.path = options.path
       result.push k if k isnt false
-        
+
     result = AbstractNoSQL::mGetSync.call(@, result, options)
     if options.keys isnt false
       result.map (item)=>
@@ -411,4 +411,3 @@ module.exports = class SubkeyNoSQL
   #TODO: separate the eventable ability from SubkeyNoSQL
   eventable = require('events-ex/ability')
   eventable SubkeyNoSQL
-
