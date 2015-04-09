@@ -76,7 +76,7 @@ module.exports = (dbCore, DefaultReadStream = ReadStream, DefaultWriteStream = W
         aOptions = {}
       if not (this instanceof Subkey)
         vKeyPath = if aKeyPath then normalizePathArray getPathArray aKeyPath else []
-        vSubkey = cache.createSubkey(toPath(vKeyPath), Subkey.bind(null, vKeyPath), aOptions, aCallback)
+        vSubkey = cache.createSubkey(toPath(vKeyPath), Subkey::Class.bind(null, vKeyPath), aOptions, aCallback)
         return vSubkey
       super(aKeyPath, aOptions, aCallback)
     initialize: (aKeyPath, aOptions, aReadyCallback)->
@@ -181,7 +181,7 @@ module.exports = (dbCore, DefaultReadStream = ReadStream, DefaultWriteStream = W
         @dispatchError err, callback
     loadSync: ->
       result = @isUnload() and dbCore.isOpen() is true
-      if result 
+      if result
         @setLoadingState "loading"
         result = if @_loadSync then @_loadSync() else true
         @setLoadingState "loaded"
