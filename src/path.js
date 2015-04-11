@@ -21,9 +21,9 @@
 
 
 //var isWindows = process.platform === 'win32';
-var isArray           = require('abstract-object/lib/util/isArray');
-var isString          = require('abstract-object/lib/util/isString');
-var isNullOrUndefined = require('abstract-object/lib/util/isNullOrUndefined');
+var isArray           = require('util-ex/lib/is/type/array');
+var isString          = require('util-ex/lib/is/type/string');
+var isNullOrUndefined = require('util-ex/lib/is/type/null-or-undefined');
 
 var SEP = require("./codec/separator");
 //var PATH_SEP = SEP.PATH_SEP
