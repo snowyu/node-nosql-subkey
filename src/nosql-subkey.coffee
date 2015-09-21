@@ -89,7 +89,7 @@ module.exports = class SubkeyNoSQL
     super
   ###
     first check preHooks if operationType
-    return falsse if prehooks disallow this operation
+    return false if prehooks disallow this operation
     or return encoded string.
   ###
   encodeKey: (aPathArray, aKey, op, operationType)->
@@ -147,7 +147,9 @@ module.exports = class SubkeyNoSQL
     path = @getPathArray(options)
     options = extend {}, @_options, options
     key = @encodeKey path, key, options, GET_OP
-    return false if key is false
+    if key is false
+      @dispatchError new InvalidArgumentError('getSync:can not encodeKey')
+      return
     result = AbstractNoSQL::getSync.call(@, key, options)
     if result isnt undefined
       encoding = @valueEncoding options
@@ -160,7 +162,9 @@ module.exports = class SubkeyNoSQL
       options = undefined
     options = extend {}, @_options, options
     key = @encodeKey(path, key, options, GET_OP)
-    return false if key is false
+    if key is false
+      @dispatchError new InvalidArgumentError('getAsync:can not encodeKey'), callback
+      return
     encoding = @valueEncoding options
     AbstractNoSQL::getAsync.call @, key, options, (err, value)=>
       return @dispatchError err, callback if err
