@@ -105,10 +105,18 @@ module.exports = (dbCore, DefaultReadStream = ReadStream, DefaultWriteStream = W
       @_initialize(aKeyPath, aOptions) if @_initialize
       defineProperty @, '_loadingState_', null
       @setLoadingState "unload"
-      @load(aReadyCallback)
+      vWannaLoad = aOptions.load if aOptions
       that = @
-      @on "ready", ->
-        that.load(aReadyCallback)
+      if vWannaLoad
+        delete aOptions.load
+        @load(aReadyCallback)
+        @on "ready", ->
+          that.load(aReadyCallback)
+      else if aReadyCallback #notify when the database is ready.
+        if dbCore.isOpen() is true
+          setImmediate aReadyCallback.bind(@, null, @)
+        else
+          @on "ready", (err, result)-> aReadyCallback.call that, err, result
     finalize: (isFreeSubkeys)->
       @_finalize(isFreeSubkeys) if @_finalize
       @freeSubkeys() if isFreeSubkeys isnt false
