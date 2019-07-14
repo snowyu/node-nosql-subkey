@@ -374,7 +374,7 @@ add({
     triggerBefore: false, //default is true. whether trigger this key on pre hook.
     triggerAfter: false   //default is true. whether trigger this key on post hook.
 })
-add(false): abondon this operation(remove it from the batch).
+add(false): abandon this operation(remove it from the batch).
 ```
 
 ### Hooks Example
