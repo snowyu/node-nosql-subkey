@@ -11,8 +11,6 @@ node_js:
   - "11"
   - "12"
 before_install:
-  - npm install -g grunt-cli
-  - npm install coffee-script
 before_script: grunt build
 notifications:
   email:
